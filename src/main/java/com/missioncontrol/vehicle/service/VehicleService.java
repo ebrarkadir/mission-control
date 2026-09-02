@@ -6,6 +6,8 @@ import com.missioncontrol.vehicle.entity.Vehicle;
 import com.missioncontrol.vehicle.entity.VehicleStatus;
 import com.missioncontrol.vehicle.entity.VehicleType;
 import com.missioncontrol.vehicle.repository.VehicleRepository;
+import com.missioncontrol.vehicle.exception.VehicleNotFoundException;
+import com.missioncontrol.vehicle.exception.DuplicateVehicleNameException;
 
 @Service
 public class VehicleService {
@@ -21,11 +23,14 @@ public class VehicleService {
             VehicleType type,
             VehicleStatus status) {
 
+        if (vehicleRepository.existsByName(name)) {
+            throw new DuplicateVehicleNameException(name);
+        }
+
         Vehicle vehicle = new Vehicle(
                 name,
                 type,
-                status
-        );
+                status);
 
         return vehicleRepository.save(vehicle);
     }
@@ -33,6 +38,6 @@ public class VehicleService {
     public Vehicle getVehicleById(Long id) {
         return vehicleRepository
                 .findById(id)
-                .orElseThrow();
+                .orElseThrow(() -> new VehicleNotFoundException(id));
     }
 }

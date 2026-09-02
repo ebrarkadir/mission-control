@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+
 import com.missioncontrol.vehicle.dto.CreateVehicleRequest;
 import com.missioncontrol.vehicle.dto.VehicleResponse;
 import com.missioncontrol.vehicle.entity.Vehicle;
@@ -27,7 +29,7 @@ public class VehicleController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public VehicleResponse createVehicle(
-            @RequestBody CreateVehicleRequest request) {
+            @Valid @RequestBody CreateVehicleRequest request) {
 
         Vehicle vehicle = vehicleService.createVehicle(
                 request.name(),
