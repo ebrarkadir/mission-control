@@ -1,5 +1,7 @@
 package com.missioncontrol.vehicle.service;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
 import com.missioncontrol.vehicle.entity.Vehicle;
@@ -40,4 +42,33 @@ public class VehicleService {
                 .findById(id)
                 .orElseThrow(() -> new VehicleNotFoundException(id));
     }
+
+    public List<Vehicle> getAllVehicles() {
+        return vehicleRepository.findAll();
+    }
+
+    public Vehicle updateVehicle(
+            Long id,
+            String name,
+            VehicleType type,
+            VehicleStatus status) {
+
+        Vehicle vehicle = getVehicleById(id);
+
+        if (vehicleRepository.existsByNameAndIdNot(name, id)) {
+            throw new DuplicateVehicleNameException(name);
+        }
+
+        vehicle.updateDetails(name, type, status);
+
+        return vehicleRepository.save(vehicle);
+    }
+
+    public Vehicle updateVehicleStatus(Long id, VehicleStatus status) {
+        Vehicle vehicle = getVehicleById(id);
+        vehicle.changeStatus(status);
+        return vehicleRepository.save(vehicle);
+    }
+
+
 }

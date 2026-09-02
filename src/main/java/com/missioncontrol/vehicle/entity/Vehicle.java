@@ -45,8 +45,23 @@ public class Vehicle {
             String name,
             VehicleType type,
             VehicleStatus status) {
+
         this.name = name;
         this.type = type;
+        this.status = status;
+    }
+
+    public void updateDetails(
+            String name,
+            VehicleType type,
+            VehicleStatus status) {
+
+        this.name = name;
+        this.type = type;
+        this.status = status;
+    }
+
+    public void changeStatus(VehicleStatus status) {
         this.status = status;
     }
 

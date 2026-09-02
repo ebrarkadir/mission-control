@@ -8,4 +8,5 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
     boolean existsByName(String name);
 
+    boolean existsByNameAndIdNot(String name, Long id);
 }
