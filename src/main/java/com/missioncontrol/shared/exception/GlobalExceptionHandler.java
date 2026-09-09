@@ -10,6 +10,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.missioncontrol.mission.exception.InvalidMissionAssignmentException;
+import com.missioncontrol.mission.exception.MissionNotFoundException;
 import com.missioncontrol.vehicle.exception.DuplicateVehicleNameException;
 import com.missioncontrol.vehicle.exception.VehicleNotFoundException;
 
@@ -36,9 +38,45 @@ public class GlobalExceptionHandler {
                 .body(body);
     }
 
+    @ExceptionHandler(MissionNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleMissionNotFound(
+            MissionNotFoundException exception,
+            HttpServletRequest request) {
+
+        Map<String, Object> body = new LinkedHashMap<>();
+
+        body.put("timestamp", Instant.now());
+        body.put("status", HttpStatus.NOT_FOUND.value());
+        body.put("error", "Not Found");
+        body.put("message", exception.getMessage());
+        body.put("path", request.getRequestURI());
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(body);
+    }
+
     @ExceptionHandler(DuplicateVehicleNameException.class)
     public ResponseEntity<Map<String, Object>> handleDuplicateVehicleName(
             DuplicateVehicleNameException exception,
+            HttpServletRequest request) {
+
+        Map<String, Object> body = new LinkedHashMap<>();
+
+        body.put("timestamp", Instant.now());
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("error", "Conflict");
+        body.put("message", exception.getMessage());
+        body.put("path", request.getRequestURI());
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(body);
+    }
+
+    @ExceptionHandler(InvalidMissionAssignmentException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidMissionAssignment(
+            InvalidMissionAssignmentException exception,
             HttpServletRequest request) {
 
         Map<String, Object> body = new LinkedHashMap<>();

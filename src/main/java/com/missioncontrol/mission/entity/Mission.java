@@ -65,6 +65,11 @@ public class Mission {
         this.status = MissionStatus.PLANNED;
     }
 
+    public void assignVehicle(Vehicle vehicle) {
+        this.vehicle = vehicle;
+        this.status = MissionStatus.READY;
+    }
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();
