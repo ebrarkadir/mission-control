@@ -73,6 +73,22 @@ public class MissionService {
             );
         }
 
+        boolean vehicleInUse =
+                missionRepository.existsByVehicle_IdAndStatusInAndIdNot(
+                        vehicleId,
+                        List.of(
+                                MissionStatus.READY,
+                                MissionStatus.ACTIVE
+                        ),
+                        missionId
+                );
+
+        if (vehicleInUse) {
+            throw new InvalidMissionAssignmentException(
+                    "Vehicle is already assigned to another active mission"
+            );
+        }
+
         mission.assignVehicle(vehicle);
 
         return missionRepository.save(mission);
