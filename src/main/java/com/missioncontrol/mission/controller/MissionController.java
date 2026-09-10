@@ -74,6 +74,33 @@ public class MissionController {
         return toResponse(mission);
     }
 
+    @PatchMapping("/{id}/start")
+    public MissionResponse startMission(
+            @PathVariable Long id) {
+
+        Mission mission = missionService.startMission(id);
+
+        return toResponse(mission);
+    }
+
+    @PatchMapping("/{id}/complete")
+    public MissionResponse completeMission(
+            @PathVariable Long id) {
+
+        Mission mission = missionService.completeMission(id);
+
+        return toResponse(mission);
+    }
+
+    @PatchMapping("/{id}/abort")
+    public MissionResponse abortMission(
+            @PathVariable Long id) {
+
+        Mission mission = missionService.abortMission(id);
+
+        return toResponse(mission);
+    }
+
     private MissionResponse toResponse(Mission mission) {
 
         Long vehicleId = mission.getVehicle() != null

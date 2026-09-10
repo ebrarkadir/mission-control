@@ -8,6 +8,7 @@ import com.missioncontrol.mission.entity.Mission;
 import com.missioncontrol.mission.entity.MissionStatus;
 import com.missioncontrol.mission.entity.MissionType;
 import com.missioncontrol.mission.exception.InvalidMissionAssignmentException;
+import com.missioncontrol.mission.exception.InvalidMissionStateException;
 import com.missioncontrol.mission.exception.MissionNotFoundException;
 import com.missioncontrol.mission.repository.MissionRepository;
 import com.missioncontrol.vehicle.entity.Vehicle;
@@ -73,6 +74,51 @@ public class MissionService {
         }
 
         mission.assignVehicle(vehicle);
+
+        return missionRepository.save(mission);
+    }
+
+    public Mission startMission(Long id) {
+
+        Mission mission = getMissionById(id);
+
+        if (mission.getStatus() != MissionStatus.READY) {
+            throw new InvalidMissionStateException(
+                    "Only READY missions can be started"
+            );
+        }
+
+        mission.start();
+
+        return missionRepository.save(mission);
+    }
+
+    public Mission completeMission(Long id) {
+
+        Mission mission = getMissionById(id);
+
+        if (mission.getStatus() != MissionStatus.ACTIVE) {
+            throw new InvalidMissionStateException(
+                    "Only ACTIVE missions can be completed"
+            );
+        }
+
+        mission.complete();
+
+        return missionRepository.save(mission);
+    }
+
+    public Mission abortMission(Long id) {
+
+        Mission mission = getMissionById(id);
+
+        if (mission.getStatus() != MissionStatus.ACTIVE) {
+            throw new InvalidMissionStateException(
+                    "Only ACTIVE missions can be aborted"
+            );
+        }
+
+        mission.abort();
 
         return missionRepository.save(mission);
     }

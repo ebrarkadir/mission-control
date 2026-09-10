@@ -70,6 +70,20 @@ public class Mission {
         this.status = MissionStatus.READY;
     }
 
+    public void start() {
+        this.status = MissionStatus.ACTIVE;
+        this.startedAt = Instant.now();
+    }
+
+    public void complete() {
+        this.status = MissionStatus.COMPLETED;
+        this.completedAt = Instant.now();
+    }
+
+    public void abort() {
+        this.status = MissionStatus.ABORTED;
+    }
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();
