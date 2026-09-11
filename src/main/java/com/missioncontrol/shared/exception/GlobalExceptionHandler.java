@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.missioncontrol.mission.exception.InvalidMissionAssignmentException;
 import com.missioncontrol.mission.exception.InvalidMissionStateException;
 import com.missioncontrol.mission.exception.MissionNotFoundException;
+import com.missioncontrol.telemetry.exception.TelemetryNotFoundException;
 import com.missioncontrol.vehicle.exception.DuplicateVehicleNameException;
 import com.missioncontrol.vehicle.exception.VehicleNotFoundException;
 
@@ -42,6 +43,24 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MissionNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleMissionNotFound(
             MissionNotFoundException exception,
+            HttpServletRequest request) {
+
+        Map<String, Object> body = new LinkedHashMap<>();
+
+        body.put("timestamp", Instant.now());
+        body.put("status", HttpStatus.NOT_FOUND.value());
+        body.put("error", "Not Found");
+        body.put("message", exception.getMessage());
+        body.put("path", request.getRequestURI());
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(body);
+    }
+
+    @ExceptionHandler(TelemetryNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleTelemetryNotFound(
+            TelemetryNotFoundException exception,
             HttpServletRequest request) {
 
         Map<String, Object> body = new LinkedHashMap<>();
@@ -93,35 +112,6 @@ public class GlobalExceptionHandler {
                 .body(body);
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidation(
-            MethodArgumentNotValidException exception,
-            HttpServletRequest request) {
-
-        Map<String, String> errors = new LinkedHashMap<>();
-
-        exception.getBindingResult()
-                .getFieldErrors()
-                .forEach(error
-                        -> errors.put(
-                        error.getField(),
-                        error.getDefaultMessage()
-                )
-                );
-
-        Map<String, Object> body = new LinkedHashMap<>();
-
-        body.put("timestamp", Instant.now());
-        body.put("status", HttpStatus.BAD_REQUEST.value());
-        body.put("error", "Bad Request");
-        body.put("errors", errors);
-        body.put("path", request.getRequestURI());
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(body);
-    }
-
     @ExceptionHandler(InvalidMissionStateException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidMissionState(
             InvalidMissionStateException exception,
@@ -137,6 +127,35 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
+                .body(body);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(
+            MethodArgumentNotValidException exception,
+            HttpServletRequest request) {
+
+        Map<String, String> errors = new LinkedHashMap<>();
+
+        exception.getBindingResult()
+                .getFieldErrors()
+                .forEach(error ->
+                        errors.put(
+                                error.getField(),
+                                error.getDefaultMessage()
+                        )
+                );
+
+        Map<String, Object> body = new LinkedHashMap<>();
+
+        body.put("timestamp", Instant.now());
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("error", "Bad Request");
+        body.put("errors", errors);
+        body.put("path", request.getRequestURI());
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
                 .body(body);
     }
 }
