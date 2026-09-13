@@ -16,13 +16,16 @@ public class TelemetryService {
 
     private final TelemetryRepository telemetryRepository;
     private final VehicleService vehicleService;
+    private final TelemetryStreamService telemetryStreamService;
 
     public TelemetryService(
             TelemetryRepository telemetryRepository,
-            VehicleService vehicleService) {
+            VehicleService vehicleService,
+            TelemetryStreamService telemetryStreamService) {
 
         this.telemetryRepository = telemetryRepository;
         this.vehicleService = vehicleService;
+        this.telemetryStreamService = telemetryStreamService;
     }
 
     public TelemetryRecord createTelemetry(
@@ -48,7 +51,12 @@ public class TelemetryService {
                 recordedAt
         );
 
-        return telemetryRepository.save(telemetry);
+        TelemetryRecord savedTelemetry =
+                telemetryRepository.save(telemetry);
+
+        telemetryStreamService.publish(savedTelemetry);
+
+        return savedTelemetry;
     }
 
     public TelemetryRecord getLatestTelemetry(Long vehicleId) {

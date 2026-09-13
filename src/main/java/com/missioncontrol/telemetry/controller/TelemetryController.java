@@ -10,11 +10,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.missioncontrol.telemetry.dto.CreateTelemetryRequest;
 import com.missioncontrol.telemetry.dto.TelemetryResponse;
 import com.missioncontrol.telemetry.entity.TelemetryRecord;
 import com.missioncontrol.telemetry.service.TelemetryService;
+import com.missioncontrol.telemetry.service.TelemetryStreamService;
 
 import jakarta.validation.Valid;
 
@@ -23,9 +25,14 @@ import jakarta.validation.Valid;
 public class TelemetryController {
 
     private final TelemetryService telemetryService;
+    private final TelemetryStreamService telemetryStreamService;
 
-    public TelemetryController(TelemetryService telemetryService) {
+    public TelemetryController(
+            TelemetryService telemetryService,
+            TelemetryStreamService telemetryStreamService) {
+
         this.telemetryService = telemetryService;
+        this.telemetryStreamService = telemetryStreamService;
     }
 
     @PostMapping
@@ -66,6 +73,15 @@ public class TelemetryController {
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @GetMapping("/stream")
+    public SseEmitter streamTelemetry(
+            @PathVariable Long vehicleId) {
+
+        telemetryService.getLatestTelemetry(vehicleId);
+
+        return telemetryStreamService.subscribe(vehicleId);
     }
 
     private TelemetryResponse toResponse(TelemetryRecord telemetry) {
