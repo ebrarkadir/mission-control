@@ -1,6 +1,8 @@
 package com.missioncontrol.auth.controller;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -57,6 +59,17 @@ public class AuthController {
                 jwtService.getExpirationSeconds(),
                 toUserResponse(user)
         );
+    }
+
+    @GetMapping("/me")
+    public UserResponse getCurrentUser(
+            Authentication authentication) {
+
+        User user = authService.getCurrentUser(
+                authentication.getName()
+        );
+
+        return toUserResponse(user);
     }
 
     private UserResponse toUserResponse(User user) {

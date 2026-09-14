@@ -74,4 +74,12 @@ public class AuthService {
 
         return user;
     }
+
+    public User getCurrentUser(String email) {
+
+        return userRepository
+                .findByEmailIgnoreCase(email)
+                .filter(User::isEnabled)
+                .orElseThrow(InvalidCredentialsException::new);
+    }
 }

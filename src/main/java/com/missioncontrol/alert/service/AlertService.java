@@ -9,6 +9,7 @@ import com.missioncontrol.alert.entity.AlertSeverity;
 import com.missioncontrol.alert.entity.AlertStatus;
 import com.missioncontrol.alert.entity.AlertType;
 import com.missioncontrol.alert.repository.AlertRepository;
+import com.missioncontrol.notification.service.NotificationService;
 import com.missioncontrol.telemetry.entity.TelemetryRecord;
 import com.missioncontrol.vehicle.entity.Vehicle;
 import com.missioncontrol.vehicle.service.VehicleService;
@@ -21,13 +22,16 @@ public class AlertService {
 
     private final AlertRepository alertRepository;
     private final VehicleService vehicleService;
+    private final NotificationService notificationService;
 
     public AlertService(
             AlertRepository alertRepository,
-            VehicleService vehicleService) {
+            VehicleService vehicleService,
+            NotificationService notificationService) {
 
         this.alertRepository = alertRepository;
         this.vehicleService = vehicleService;
+        this.notificationService = notificationService;
     }
 
     public void evaluateTelemetry(TelemetryRecord telemetry) {
@@ -91,7 +95,11 @@ public class AlertService {
                 "Vehicle telemetry connection lost"
         );
 
-        alertRepository.save(alert);
+        Alert savedAlert =
+                alertRepository.save(alert);
+
+        notificationService
+                .createNotificationsForAlert(savedAlert);
     }
 
     public List<Alert> getVehicleAlerts(Long vehicleId) {
@@ -129,7 +137,11 @@ public class AlertService {
                 message
         );
 
-        alertRepository.save(alert);
+        Alert savedAlert =
+                alertRepository.save(alert);
+
+        notificationService
+                .createNotificationsForAlert(savedAlert);
     }
 
     private void resolveAlertIfOpen(
