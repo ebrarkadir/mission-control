@@ -10,6 +10,7 @@ import com.missioncontrol.alert.entity.AlertStatus;
 import com.missioncontrol.alert.entity.AlertType;
 import com.missioncontrol.alert.repository.AlertRepository;
 import com.missioncontrol.telemetry.entity.TelemetryRecord;
+import com.missioncontrol.vehicle.entity.Vehicle;
 import com.missioncontrol.vehicle.service.VehicleService;
 
 @Service
@@ -31,6 +32,13 @@ public class AlertService {
 
     public void evaluateTelemetry(TelemetryRecord telemetry) {
 
+        Long vehicleId = telemetry.getVehicle().getId();
+
+        resolveAlertIfOpen(
+                vehicleId,
+                AlertType.CONNECTION_LOST
+        );
+
         if (telemetry.getBattery() < LOW_BATTERY_THRESHOLD) {
             createAlertIfNotOpen(
                     telemetry,
@@ -40,7 +48,7 @@ public class AlertService {
             );
         } else {
             resolveAlertIfOpen(
-                    telemetry.getVehicle().getId(),
+                    vehicleId,
                     AlertType.LOW_BATTERY
             );
         }
@@ -54,10 +62,36 @@ public class AlertService {
             );
         } else {
             resolveAlertIfOpen(
-                    telemetry.getVehicle().getId(),
+                    vehicleId,
                     AlertType.HIGH_TEMPERATURE
             );
         }
+    }
+
+    public void createConnectionLostAlertIfNotOpen(Vehicle vehicle) {
+
+        Long vehicleId = vehicle.getId();
+
+        boolean openAlertExists =
+                alertRepository.existsByVehicle_IdAndTypeAndStatus(
+                        vehicleId,
+                        AlertType.CONNECTION_LOST,
+                        AlertStatus.OPEN
+                );
+
+        if (openAlertExists) {
+            return;
+        }
+
+        Alert alert = new Alert(
+                vehicle,
+                null,
+                AlertType.CONNECTION_LOST,
+                AlertSeverity.CRITICAL,
+                "Vehicle telemetry connection lost"
+        );
+
+        alertRepository.save(alert);
     }
 
     public List<Alert> getVehicleAlerts(Long vehicleId) {
