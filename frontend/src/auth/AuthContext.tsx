@@ -48,11 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         const currentUser = await authApi.getCurrentUser();
-        if (!cancelled) {
+        if (!cancelled && authSession.getToken() === token) {
           setUser(currentUser);
         }
       } catch {
-        if (!cancelled) {
+        if (!cancelled && authSession.getToken() === token) {
           authSession.clearToken();
           setUser(null);
         }
@@ -74,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await authApi.login(credentials);
     authSession.setToken(response.accessToken);
     setUser(response.user);
+    setIsLoading(false);
   }, []);
 
   const value = useMemo<AuthContextValue>(

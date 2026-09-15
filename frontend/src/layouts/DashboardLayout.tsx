@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import type { UserRole } from '../types/auth';
 
 const navItems = [
@@ -25,6 +26,7 @@ function roleBadgeClass(role: UserRole): string {
 
 export function DashboardLayout() {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotification();
 
   if (!user) {
     return null;
@@ -51,7 +53,12 @@ export function DashboardLayout() {
                 isActive ? 'nav-link nav-link--active' : 'nav-link'
               }
             >
-              {item.label}
+              <span>{item.label}</span>
+              {item.to === '/notifications' && unreadCount > 0 && (
+                <span className="nav-badge" aria-label={`${unreadCount} unread`}>
+                  {unreadCount}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

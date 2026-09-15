@@ -83,4 +83,8 @@ public class TelemetryService {
         return telemetryRepository
                 .findTop100ByVehicle_IdOrderByRecordedAtDesc(vehicleId);
     }
+
+    public void validateVehicleExists(Long vehicleId) {
+        vehicleService.getVehicleById(vehicleId);
+    }
 }

@@ -11,6 +11,12 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler): void {
   unauthorizedHandler = handler;
 }
 
+export function triggerUnauthorized(): void {
+  if (unauthorizedHandler) {
+    unauthorizedHandler();
+  }
+}
+
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
   skipUnauthorizedHandler?: boolean;
@@ -56,7 +62,9 @@ export async function apiClient<T>(
       !skipUnauthorizedHandler &&
       unauthorizedHandler
     ) {
-      unauthorizedHandler();
+      if (token && authSession.getToken() === token) {
+        unauthorizedHandler();
+      }
     }
 
     throw new ApiError(

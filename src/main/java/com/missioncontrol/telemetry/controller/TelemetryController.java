@@ -79,7 +79,7 @@ public class TelemetryController {
     public SseEmitter streamTelemetry(
             @PathVariable Long vehicleId) {
 
-        telemetryService.getLatestTelemetry(vehicleId);
+        telemetryService.validateVehicleExists(vehicleId);
 
         return telemetryStreamService.subscribe(vehicleId);
     }
