@@ -36,61 +36,54 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
-
                 .cors(Customizer.withDefaults())
-
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(
-                                SessionCreationPolicy.STATELESS
+                .sessionManagement(session
+                        -> session.sessionCreationPolicy(
+                        SessionCreationPolicy.STATELESS
+                )
+                )
+                .exceptionHandling(exceptions
+                        -> exceptions
+                        .authenticationEntryPoint(
+                                authenticationEntryPoint
+                        )
+                        .accessDeniedHandler(
+                                accessDeniedHandler
                         )
                 )
-
-                .exceptionHandling(exceptions ->
-                        exceptions
-                                .authenticationEntryPoint(
-                                        authenticationEntryPoint
-                                )
-                                .accessDeniedHandler(
-                                        accessDeniedHandler
-                                )
+                .authorizeHttpRequests(authorize
+                        -> authorize
+                        .requestMatchers(
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**"
+                        )
+                        .permitAll()
+                        .requestMatchers("/api/admin/**")
+                        .hasRole("ADMIN")
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/vehicles/**",
+                                "/api/missions/**"
+                        )
+                        .hasAnyRole(
+                                "ADMIN",
+                                "OPERATOR",
+                                "VIEWER"
+                        )
+                        .requestMatchers(
+                                "/api/vehicles/**",
+                                "/api/missions/**"
+                        )
+                        .hasAnyRole(
+                                "ADMIN",
+                                "OPERATOR"
+                        )
+                        .anyRequest()
+                        .authenticated()
                 )
-
-                .authorizeHttpRequests(authorize ->
-                        authorize
-
-                                .requestMatchers(
-                                        "/api/auth/register",
-                                        "/api/auth/login",
-                                        "/swagger-ui/**",
-                                        "/swagger-ui.html",
-                                        "/v3/api-docs/**"
-                                )
-                                .permitAll()
-
-                                .requestMatchers(
-                                        HttpMethod.GET,
-                                        "/api/vehicles/**",
-                                        "/api/missions/**"
-                                )
-                                .hasAnyRole(
-                                        "ADMIN",
-                                        "OPERATOR",
-                                        "VIEWER"
-                                )
-
-                                .requestMatchers(
-                                        "/api/vehicles/**",
-                                        "/api/missions/**"
-                                )
-                                .hasAnyRole(
-                                        "ADMIN",
-                                        "OPERATOR"
-                                )
-
-                                .anyRequest()
-                                .authenticated()
-                )
-
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class

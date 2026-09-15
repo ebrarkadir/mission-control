@@ -77,6 +77,14 @@ public class User {
         this.updatedAt = Instant.now();
     }
 
+    public void changeRole(UserRole role) {
+        this.role = role;
+    }
+
+    public void changeEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
     public Long getId() {
         return id;
     }

@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.missioncontrol.auth.entity.User;
+import com.missioncontrol.auth.entity.UserRole;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
@@ -14,4 +15,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmailIgnoreCase(String email);
 
     List<User> findByEnabledTrue();
+
+    boolean existsByRole(UserRole role);
 }

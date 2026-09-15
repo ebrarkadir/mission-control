@@ -1,16 +1,16 @@
 package com.missioncontrol.auth.security;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.missioncontrol.auth.entity.User;
@@ -177,7 +177,127 @@ class SecurityIntegrationTest {
                 .andExpect(jsonPath("$.status").value(401));
     }
 
+    @Test
+    void shouldAllowAdminToListUsers() throws Exception {
+
+        String token = createToken(
+                "admin-list@test.com",
+                UserRole.ADMIN
+        );
+
+        mockMvc.perform(
+                get("/api/admin/users")
+                        .header(
+                                "Authorization",
+                                "Bearer " + token
+                        )
+        )
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldRejectViewerFromAdminEndpoints() throws Exception {
+
+        String token = createToken(
+                "viewer-admin@test.com",
+                UserRole.VIEWER
+        );
+
+        mockMvc.perform(
+                get("/api/admin/users")
+                        .header(
+                                "Authorization",
+                                "Bearer " + token
+                        )
+        )
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403));
+    }
+
+    @Test
+    void shouldAllowAdminToChangeUserRole() throws Exception {
+
+        String token = createToken(
+                "admin-role@test.com",
+                UserRole.ADMIN
+        );
+
+        User targetUser = createUser(
+                "target-role@test.com",
+                UserRole.VIEWER
+        );
+
+        mockMvc.perform(
+                patch(
+                        "/api/admin/users/"
+                                + targetUser.getId()
+                                + "/role"
+                )
+                        .header(
+                                "Authorization",
+                                "Bearer " + token
+                        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "role": "OPERATOR"
+                                }
+                                """)
+        )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.role")
+                                .value("OPERATOR")
+                );
+    }
+
+    @Test
+    void shouldAllowAdminToDisableUser() throws Exception {
+
+        String token = createToken(
+                "admin-enabled@test.com",
+                UserRole.ADMIN
+        );
+
+        User targetUser = createUser(
+                "target-enabled@test.com",
+                UserRole.VIEWER
+        );
+
+        mockMvc.perform(
+                patch(
+                        "/api/admin/users/"
+                                + targetUser.getId()
+                                + "/enabled"
+                )
+                        .header(
+                                "Authorization",
+                                "Bearer " + token
+                        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "enabled": false
+                                }
+                                """)
+        )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.enabled")
+                                .value(false)
+                );
+    }
+
     private String createToken(
+            String email,
+            UserRole role) {
+
+        User user = createUser(email, role);
+
+        return jwtService.generateToken(user);
+    }
+
+    private User createUser(
             String email,
             UserRole role) {
 
@@ -188,9 +308,6 @@ class SecurityIntegrationTest {
                 role
         );
 
-        User savedUser =
-                userRepository.save(user);
-
-        return jwtService.generateToken(savedUser);
+        return userRepository.save(user);
     }
 }
