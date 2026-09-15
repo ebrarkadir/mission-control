@@ -1,4 +1,5 @@
 services:
+
   postgres:
     image: postgres:18
     container_name: mission-control-postgres
@@ -11,5 +12,18 @@ services:
     volumes:
       - mission_control_postgres_data:/var/lib/postgresql
 
+  telemetry-postgres:
+    image: postgres:18
+    container_name: telemetry-service-postgres
+    environment:
+      POSTGRES_DB: telemetry_service
+      POSTGRES_USER: telemetry_service
+      POSTGRES_PASSWORD: telemetry_service_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - telemetry_service_postgres_data:/var/lib/postgresql
+
 volumes:
   mission_control_postgres_data:
+  telemetry_service_postgres_data:
