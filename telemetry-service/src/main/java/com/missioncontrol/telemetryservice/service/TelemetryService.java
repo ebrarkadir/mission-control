@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.missioncontrol.telemetryservice.client.VehicleClient;
 import com.missioncontrol.telemetryservice.entity.TelemetryRecord;
 import com.missioncontrol.telemetryservice.exception.TelemetryNotFoundException;
 import com.missioncontrol.telemetryservice.repository.TelemetryRepository;
@@ -13,11 +14,14 @@ import com.missioncontrol.telemetryservice.repository.TelemetryRepository;
 public class TelemetryService {
 
     private final TelemetryRepository telemetryRepository;
+    private final VehicleClient vehicleClient;
 
     public TelemetryService(
-            TelemetryRepository telemetryRepository) {
+            TelemetryRepository telemetryRepository,
+            VehicleClient vehicleClient) {
 
         this.telemetryRepository = telemetryRepository;
+        this.vehicleClient = vehicleClient;
     }
 
     public TelemetryRecord createTelemetry(
@@ -29,6 +33,8 @@ public class TelemetryService {
             int battery,
             double temperature,
             Instant recordedAt) {
+
+        vehicleClient.validateVehicleExists(vehicleId);
 
         TelemetryRecord telemetry = new TelemetryRecord(
                 vehicleId,
@@ -46,6 +52,8 @@ public class TelemetryService {
 
     public TelemetryRecord getLatestTelemetry(Long vehicleId) {
 
+        vehicleClient.validateVehicleExists(vehicleId);
+
         return telemetryRepository
                 .findTopByVehicleIdOrderByRecordedAtDesc(vehicleId)
                 .orElseThrow(() ->
@@ -54,6 +62,8 @@ public class TelemetryService {
     }
 
     public List<TelemetryRecord> getTelemetryHistory(Long vehicleId) {
+
+        vehicleClient.validateVehicleExists(vehicleId);
 
         return telemetryRepository
                 .findTop100ByVehicleIdOrderByRecordedAtDesc(vehicleId);
