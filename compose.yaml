@@ -24,6 +24,19 @@ services:
     volumes:
       - telemetry_service_postgres_data:/var/lib/postgresql
 
+  alert-postgres:
+    image: postgres:18
+    container_name: alert-service-postgres
+    environment:
+      POSTGRES_DB: alert_service
+      POSTGRES_USER: alert_service
+      POSTGRES_PASSWORD: alert_service_dev
+    ports:
+      - "5434:5432"
+    volumes:
+      - alert_service_postgres_data:/var/lib/postgresql
+
 volumes:
   mission_control_postgres_data:
   telemetry_service_postgres_data:
+  alert_service_postgres_data:
