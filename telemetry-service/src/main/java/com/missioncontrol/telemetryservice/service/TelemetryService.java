@@ -15,13 +15,16 @@ public class TelemetryService {
 
     private final TelemetryRepository telemetryRepository;
     private final VehicleClient vehicleClient;
+    private final TelemetryStreamService telemetryStreamService;
 
     public TelemetryService(
             TelemetryRepository telemetryRepository,
-            VehicleClient vehicleClient) {
+            VehicleClient vehicleClient,
+            TelemetryStreamService telemetryStreamService) {
 
         this.telemetryRepository = telemetryRepository;
         this.vehicleClient = vehicleClient;
+        this.telemetryStreamService = telemetryStreamService;
     }
 
     public TelemetryRecord createTelemetry(
@@ -47,7 +50,12 @@ public class TelemetryService {
                 recordedAt
         );
 
-        return telemetryRepository.save(telemetry);
+        TelemetryRecord savedTelemetry =
+                telemetryRepository.save(telemetry);
+
+        telemetryStreamService.publish(savedTelemetry);
+
+        return savedTelemetry;
     }
 
     public TelemetryRecord getLatestTelemetry(Long vehicleId) {
@@ -67,5 +75,9 @@ public class TelemetryService {
 
         return telemetryRepository
                 .findTop100ByVehicleIdOrderByRecordedAtDesc(vehicleId);
+    }
+
+    public void validateVehicleExists(Long vehicleId) {
+        vehicleClient.validateVehicleExists(vehicleId);
     }
 }
