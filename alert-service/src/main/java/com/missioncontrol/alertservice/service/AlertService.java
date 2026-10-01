@@ -9,6 +9,7 @@ import com.missioncontrol.alertservice.entity.Alert;
 import com.missioncontrol.alertservice.entity.AlertSeverity;
 import com.missioncontrol.alertservice.entity.AlertStatus;
 import com.missioncontrol.alertservice.entity.AlertType;
+import com.missioncontrol.alertservice.messaging.AlertEventPublisher;
 import com.missioncontrol.alertservice.repository.AlertRepository;
 
 @Service
@@ -18,13 +19,17 @@ public class AlertService {
     private static final double HIGH_TEMPERATURE_THRESHOLD = 70.0;
 
     private final AlertRepository alertRepository;
+    private final AlertEventPublisher alertEventPublisher;
 
-    public AlertService(AlertRepository alertRepository) {
+    public AlertService(
+            AlertRepository alertRepository,
+            AlertEventPublisher alertEventPublisher) {
+
         this.alertRepository = alertRepository;
+        this.alertEventPublisher = alertEventPublisher;
     }
 
     public void evaluateTelemetry(TelemetryData telemetry) {
-
         Long vehicleId = telemetry.vehicleId();
 
         resolveAlertIfOpen(
@@ -46,7 +51,9 @@ public class AlertService {
             );
         }
 
-        if (telemetry.temperature() > HIGH_TEMPERATURE_THRESHOLD) {
+        if (telemetry.temperature() >
+                HIGH_TEMPERATURE_THRESHOLD) {
+
             createAlertIfNotOpen(
                     telemetry,
                     AlertType.HIGH_TEMPERATURE,
@@ -61,7 +68,8 @@ public class AlertService {
         }
     }
 
-    public void createConnectionLostAlertIfNotOpen(Long vehicleId) {
+    public void createConnectionLostAlertIfNotOpen(
+            Long vehicleId) {
 
         boolean openAlertExists =
                 alertRepository.existsByVehicleIdAndTypeAndStatus(
@@ -82,11 +90,10 @@ public class AlertService {
                 "Vehicle telemetry connection lost"
         );
 
-        alertRepository.save(alert);
+        saveAndPublish(alert);
     }
 
     public List<Alert> getVehicleAlerts(Long vehicleId) {
-
         return alertRepository
                 .findByVehicleIdOrderByCreatedAtDesc(vehicleId);
     }
@@ -118,7 +125,16 @@ public class AlertService {
                 message
         );
 
-        alertRepository.save(alert);
+        saveAndPublish(alert);
+    }
+
+    private void saveAndPublish(Alert alert) {
+
+        Alert savedAlert =
+                alertRepository.save(alert);
+
+        alertEventPublisher
+                .publishAlertCreated(savedAlert);
     }
 
     private void resolveAlertIfOpen(

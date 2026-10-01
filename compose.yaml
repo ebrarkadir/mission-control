@@ -36,6 +36,18 @@ services:
     volumes:
       - alert_service_postgres_data:/var/lib/postgresql
 
+  notification-postgres:
+    image: postgres:18
+    container_name: notification-service-postgres
+    environment:
+      POSTGRES_DB: notification_service
+      POSTGRES_USER: notification_service
+      POSTGRES_PASSWORD: notification_service_dev
+    ports:
+      - "5435:5432"
+    volumes:
+      - notification_service_postgres_data:/var/lib/postgresql
+
   rabbitmq:
     image: rabbitmq:4-management
     container_name: mission-control-rabbitmq
@@ -50,3 +62,4 @@ volumes:
   mission_control_postgres_data:
   telemetry_service_postgres_data:
   alert_service_postgres_data:
+  notification_service_postgres_data:
