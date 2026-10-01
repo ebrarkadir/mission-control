@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import com.missioncontrol.telemetryservice.client.VehicleClient;
 import com.missioncontrol.telemetryservice.entity.TelemetryRecord;
 import com.missioncontrol.telemetryservice.exception.TelemetryNotFoundException;
+import com.missioncontrol.telemetryservice.messaging.TelemetryEventPublisher;
 import com.missioncontrol.telemetryservice.repository.TelemetryRepository;
 
 @Service
@@ -16,15 +17,18 @@ public class TelemetryService {
     private final TelemetryRepository telemetryRepository;
     private final VehicleClient vehicleClient;
     private final TelemetryStreamService telemetryStreamService;
+    private final TelemetryEventPublisher telemetryEventPublisher;
 
     public TelemetryService(
             TelemetryRepository telemetryRepository,
             VehicleClient vehicleClient,
-            TelemetryStreamService telemetryStreamService) {
+            TelemetryStreamService telemetryStreamService,
+            TelemetryEventPublisher telemetryEventPublisher) {
 
         this.telemetryRepository = telemetryRepository;
         this.vehicleClient = vehicleClient;
         this.telemetryStreamService = telemetryStreamService;
+        this.telemetryEventPublisher = telemetryEventPublisher;
     }
 
     public TelemetryRecord createTelemetry(
@@ -54,6 +58,10 @@ public class TelemetryService {
                 telemetryRepository.save(telemetry);
 
         telemetryStreamService.publish(savedTelemetry);
+
+        telemetryEventPublisher.publishTelemetryCreated(
+                savedTelemetry
+        );
 
         return savedTelemetry;
     }

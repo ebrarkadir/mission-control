@@ -36,6 +36,16 @@ services:
     volumes:
       - alert_service_postgres_data:/var/lib/postgresql
 
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: mission-control-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: mission_control
+      RABBITMQ_DEFAULT_PASS: mission_control_dev
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
 volumes:
   mission_control_postgres_data:
   telemetry_service_postgres_data:
