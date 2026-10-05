@@ -1,0 +1,80 @@
+spring:
+  application:
+    name: gateway-service
+
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          routes:
+
+            - id: telemetry-stream-service
+              uri: http://localhost:8081
+              predicates:
+                - Path=/api/vehicles/{vehicleId}/telemetry/stream
+              filters:
+                - RemoveResponseHeader=Access-Control-Allow-Origin
+                - RemoveResponseHeader=Access-Control-Allow-Credentials
+
+            - id: telemetry-service
+              uri: http://localhost:8081
+              predicates:
+                - Path=/api/vehicles/{vehicleId}/telemetry,/api/vehicles/{vehicleId}/telemetry/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    id: telemetryCircuitBreaker
+                    fallbackUri: forward:/fallback/telemetry
+                - RemoveResponseHeader=Access-Control-Allow-Origin
+                - RemoveResponseHeader=Access-Control-Allow-Credentials
+
+            - id: alert-service
+              uri: http://localhost:8082
+              predicates:
+                - Path=/api/alerts/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    id: alertCircuitBreaker
+                    fallbackUri: forward:/fallback/alerts
+                - RemoveResponseHeader=Access-Control-Allow-Origin
+                - RemoveResponseHeader=Access-Control-Allow-Credentials
+
+            - id: notification-service
+              uri: http://localhost:8083
+              predicates:
+                - Path=/api/notifications/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    id: notificationCircuitBreaker
+                    fallbackUri: forward:/fallback/notifications
+                - RemoveResponseHeader=Access-Control-Allow-Origin
+                - RemoveResponseHeader=Access-Control-Allow-Credentials
+
+            - id: auth-core
+              uri: http://localhost:8080
+              predicates:
+                - Path=/api/auth/**
+              filters:
+                - RemoveResponseHeader=Access-Control-Allow-Origin
+                - RemoveResponseHeader=Access-Control-Allow-Credentials
+
+            - id: mission-core
+              uri: http://localhost:8080
+              predicates:
+                - Path=/api/missions/**
+              filters:
+                - RemoveResponseHeader=Access-Control-Allow-Origin
+                - RemoveResponseHeader=Access-Control-Allow-Credentials
+
+            - id: vehicle-core
+              uri: http://localhost:8080
+              predicates:
+                - Path=/api/vehicles/**
+              filters:
+                - RemoveResponseHeader=Access-Control-Allow-Origin
+                - RemoveResponseHeader=Access-Control-Allow-Credentials
+
+server:
+  port: 8084
