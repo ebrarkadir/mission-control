@@ -1,0 +1,11 @@
+target
+frontend
+telemetry-service
+alert-service
+notification-service
+gateway-service
+.git
+.github
+.vscode
+.idea
+*.log

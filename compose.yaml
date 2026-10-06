@@ -11,6 +11,11 @@ services:
       - "5432:5432"
     volumes:
       - mission_control_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mission_control -d mission_control"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   telemetry-postgres:
     image: postgres:18
@@ -23,6 +28,11 @@ services:
       - "5433:5432"
     volumes:
       - telemetry_service_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U telemetry_service -d telemetry_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   alert-postgres:
     image: postgres:18
@@ -35,6 +45,11 @@ services:
       - "5434:5432"
     volumes:
       - alert_service_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alert_service -d alert_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   notification-postgres:
     image: postgres:18
@@ -47,6 +62,11 @@ services:
       - "5435:5432"
     volumes:
       - notification_service_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification_service -d notification_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   rabbitmq:
     image: rabbitmq:4-management
@@ -57,6 +77,11 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   redis:
     image: redis:7-alpine
@@ -65,6 +90,150 @@ services:
       - "6379:6379"
     volumes:
       - mission_control_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mission-control-core
+    container_name: mission-control-core
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mission_control
+      SPRING_DATASOURCE_USERNAME: mission_control
+      SPRING_DATASOURCE_PASSWORD: mission_control_dev
+
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+
+      BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  telemetry-service:
+    build:
+      context: ./telemetry-service
+      dockerfile: Dockerfile
+    image: mission-control-telemetry
+    container_name: mission-control-telemetry
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://telemetry-postgres:5432/telemetry_service
+      SPRING_DATASOURCE_USERNAME: telemetry_service
+      SPRING_DATASOURCE_PASSWORD: telemetry_service_dev
+
+      CORE_SERVICE_URL: http://core:8080
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: mission_control
+      RABBITMQ_PASSWORD: mission_control_dev
+
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      telemetry-postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      core:
+        condition: service_started
+
+  alert-service:
+    build:
+      context: ./alert-service
+      dockerfile: Dockerfile
+    image: mission-control-alert
+    container_name: mission-control-alert
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://alert-postgres:5432/alert_service
+      SPRING_DATASOURCE_USERNAME: alert_service
+      SPRING_DATASOURCE_PASSWORD: alert_service_dev
+
+      CORE_SERVICE_URL: http://core:8080
+      TELEMETRY_SERVICE_URL: http://telemetry-service:8081
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: mission_control
+      RABBITMQ_PASSWORD: mission_control_dev
+    ports:
+      - "8082:8082"
+    depends_on:
+      alert-postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      core:
+        condition: service_started
+      telemetry-service:
+        condition: service_started
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    image: mission-control-notification
+    container_name: mission-control-notification
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://notification-postgres:5432/notification_service
+      SPRING_DATASOURCE_USERNAME: notification_service
+      SPRING_DATASOURCE_PASSWORD: notification_service_dev
+
+      CORE_SERVICE_URL: http://core:8080
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: mission_control
+      RABBITMQ_PASSWORD: mission_control_dev
+    ports:
+      - "8083:8083"
+    depends_on:
+      notification-postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      core:
+        condition: service_started
+
+  gateway-service:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    image: mission-control-gateway
+    container_name: mission-control-gateway
+    environment:
+      CORE_SERVICE_URL: http://core:8080
+      TELEMETRY_SERVICE_URL: http://telemetry-service:8081
+      ALERT_SERVICE_URL: http://alert-service:8082
+      NOTIFICATION_SERVICE_URL: http://notification-service:8083
+    ports:
+      - "8084:8084"
+    depends_on:
+      core:
+        condition: service_started
+      telemetry-service:
+        condition: service_started
+      alert-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
 
 volumes:
   mission_control_postgres_data:

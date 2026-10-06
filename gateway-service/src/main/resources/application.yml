@@ -9,7 +9,7 @@ spring:
           routes:
 
             - id: telemetry-stream-service
-              uri: http://localhost:8081
+              uri: ${TELEMETRY_SERVICE_URL:http://localhost:8081}
               predicates:
                 - Path=/api/vehicles/{vehicleId}/telemetry/stream
               filters:
@@ -17,7 +17,7 @@ spring:
                 - RemoveResponseHeader=Access-Control-Allow-Credentials
 
             - id: telemetry-service
-              uri: http://localhost:8081
+              uri: ${TELEMETRY_SERVICE_URL:http://localhost:8081}
               predicates:
                 - Path=/api/vehicles/{vehicleId}/telemetry,/api/vehicles/{vehicleId}/telemetry/**
               filters:
@@ -29,7 +29,7 @@ spring:
                 - RemoveResponseHeader=Access-Control-Allow-Credentials
 
             - id: alert-service
-              uri: http://localhost:8082
+              uri: ${ALERT_SERVICE_URL:http://localhost:8082}
               predicates:
                 - Path=/api/alerts/**
               filters:
@@ -41,7 +41,7 @@ spring:
                 - RemoveResponseHeader=Access-Control-Allow-Credentials
 
             - id: notification-service
-              uri: http://localhost:8083
+              uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
               predicates:
                 - Path=/api/notifications/**
               filters:
@@ -53,7 +53,7 @@ spring:
                 - RemoveResponseHeader=Access-Control-Allow-Credentials
 
             - id: auth-core
-              uri: http://localhost:8080
+              uri: ${CORE_SERVICE_URL:http://localhost:8080}
               predicates:
                 - Path=/api/auth/**
               filters:
@@ -61,7 +61,7 @@ spring:
                 - RemoveResponseHeader=Access-Control-Allow-Credentials
 
             - id: mission-core
-              uri: http://localhost:8080
+              uri: ${CORE_SERVICE_URL:http://localhost:8080}
               predicates:
                 - Path=/api/missions/**
               filters:
@@ -69,7 +69,7 @@ spring:
                 - RemoveResponseHeader=Access-Control-Allow-Credentials
 
             - id: vehicle-core
-              uri: http://localhost:8080
+              uri: ${CORE_SERVICE_URL:http://localhost:8080}
               predicates:
                 - Path=/api/vehicles/**
               filters:
