@@ -18,7 +18,10 @@ public class Notification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "alert_id", nullable = false, unique = true)
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    @Column(name = "alert_id", nullable = false)
     private Long alertId;
 
     @Column(name = "vehicle_id", nullable = false)
@@ -46,12 +49,14 @@ public class Notification {
     }
 
     public Notification(
+            Long userId,
             Long alertId,
             Long vehicleId,
             String type,
             String severity,
             String message) {
 
+        this.userId = userId;
         this.alertId = alertId;
         this.vehicleId = vehicleId;
         this.type = type;
@@ -78,6 +83,10 @@ public class Notification {
 
     public Long getId() {
         return id;
+    }
+
+    public Long getUserId() {
+        return userId;
     }
 
     public Long getAlertId() {

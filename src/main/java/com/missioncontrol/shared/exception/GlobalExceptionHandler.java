@@ -16,8 +16,6 @@ import com.missioncontrol.auth.exception.UserNotFoundException;
 import com.missioncontrol.mission.exception.InvalidMissionAssignmentException;
 import com.missioncontrol.mission.exception.InvalidMissionStateException;
 import com.missioncontrol.mission.exception.MissionNotFoundException;
-import com.missioncontrol.notification.exception.NotificationNotFoundException;
-import com.missioncontrol.telemetry.exception.TelemetryNotFoundException;
 import com.missioncontrol.vehicle.exception.DuplicateVehicleNameException;
 import com.missioncontrol.vehicle.exception.VehicleNotFoundException;
 
@@ -50,33 +48,9 @@ public class GlobalExceptionHandler {
         );
     }
 
-    @ExceptionHandler(TelemetryNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleTelemetryNotFound(
-            TelemetryNotFoundException exception,
-            HttpServletRequest request) {
-
-        return buildErrorResponse(
-                HttpStatus.NOT_FOUND,
-                exception.getMessage(),
-                request
-        );
-    }
-
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleUserNotFound(
             UserNotFoundException exception,
-            HttpServletRequest request) {
-
-        return buildErrorResponse(
-                HttpStatus.NOT_FOUND,
-                exception.getMessage(),
-                request
-        );
-    }
-
-    @ExceptionHandler(NotificationNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleNotificationNotFound(
-            NotificationNotFoundException exception,
             HttpServletRequest request) {
 
         return buildErrorResponse(
