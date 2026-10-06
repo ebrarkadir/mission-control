@@ -68,6 +68,56 @@ public class TelemetryRecord {
         this.recordedAt = recordedAt;
     }
 
+    private TelemetryRecord(
+            Long id,
+            Long vehicleId,
+            double latitude,
+            double longitude,
+            double altitude,
+            double speed,
+            int battery,
+            double temperature,
+            Instant recordedAt,
+            Instant createdAt) {
+
+        this.id = id;
+        this.vehicleId = vehicleId;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.altitude = altitude;
+        this.speed = speed;
+        this.battery = battery;
+        this.temperature = temperature;
+        this.recordedAt = recordedAt;
+        this.createdAt = createdAt;
+    }
+
+    public static TelemetryRecord restore(
+            Long id,
+            Long vehicleId,
+            double latitude,
+            double longitude,
+            double altitude,
+            double speed,
+            int battery,
+            double temperature,
+            Instant recordedAt,
+            Instant createdAt) {
+
+        return new TelemetryRecord(
+                id,
+                vehicleId,
+                latitude,
+                longitude,
+                altitude,
+                speed,
+                battery,
+                temperature,
+                recordedAt,
+                createdAt
+        );
+    }
+
     @PrePersist
     void onCreate() {
         if (createdAt == null) {
