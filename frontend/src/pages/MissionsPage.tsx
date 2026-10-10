@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 
 import { missionApi } from '../api/missionApi';
 import { vehicleApi } from '../api/vehicleApi';
 import { useAuth } from '../auth/AuthContext';
+import {
+  IconCheckCircle,
+  IconClose,
+  IconPlus,
+  IconRadio,
+  IconRefresh,
+  IconStopCircle,
+  IconVehicles,
+} from '../components/Icons';
 import { ApiError } from '../types/api';
 import type {
   CreateMissionRequest,
   Mission,
-  MissionStatus,
   MissionType,
 } from '../types/mission';
 import type { Vehicle } from '../types/vehicle';
@@ -31,21 +40,6 @@ function formatDateTime(isoString?: string | null): string {
     });
   } catch {
     return isoString;
-  }
-}
-
-function getStatusBadgeClass(status: MissionStatus): string {
-  switch (status) {
-    case 'PLANNED':
-      return 'status-badge status-badge--planned';
-    case 'READY':
-      return 'status-badge status-badge--ready';
-    case 'ACTIVE':
-      return 'status-badge status-badge--active';
-    case 'COMPLETED':
-      return 'status-badge status-badge--completed';
-    case 'ABORTED':
-      return 'status-badge status-badge--aborted';
   }
 }
 
@@ -101,14 +95,12 @@ export function MissionsPage() {
     void loadData();
   }, [loadData]);
 
-  // Vehicle lookup map
   const vehicleMap = useMemo(() => {
     const map = new Map<number, Vehicle>();
     vehicles.forEach((v) => map.set(v.id, v));
     return map;
   }, [vehicles]);
 
-  // Busy vehicles (vehicles currently assigned to other READY or ACTIVE missions)
   const busyVehicleIds = useMemo(() => {
     const set = new Set<number>();
     missions.forEach((m) => {
@@ -122,7 +114,6 @@ export function MissionsPage() {
     return set;
   }, [missions]);
 
-  // Stats calculation
   const stats = useMemo(() => {
     const total = missions.length;
     const planned = missions.filter((m) => m.status === 'PLANNED').length;
@@ -133,7 +124,7 @@ export function MissionsPage() {
     return { total, planned, ready, active, completed, aborted };
   }, [missions]);
 
-  // Create Mission Handlers
+  // Create Handlers
   const handleOpenCreateModal = () => {
     setCreateForm({ name: '', type: 'SURVEILLANCE' });
     setActionError(null);
@@ -143,7 +134,7 @@ export function MissionsPage() {
   const handleCreateSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!createForm.name.trim()) {
-      setActionError('Mission name is required.');
+      setActionError('Mission callsign / name is required.');
       return;
     }
 
@@ -204,12 +195,12 @@ export function MissionsPage() {
     }
   };
 
-  // Lifecycle transitions: Start, Complete, Abort
-  const handleStartMission = async (mission: Mission) => {
-    setInFlightMissionId(mission.id);
+  // Lifecycle transitions
+  const handleStartMission = async (id: number) => {
+    setInFlightMissionId(id);
     setActionError(null);
     try {
-      await missionApi.start(mission.id);
+      await missionApi.start(id);
       await loadData();
     } catch (err) {
       const message =
@@ -218,17 +209,17 @@ export function MissionsPage() {
           : err instanceof Error
           ? err.message
           : 'Failed to start mission.';
-      alert(message);
+      setActionError(message);
     } finally {
       setInFlightMissionId(null);
     }
   };
 
-  const handleCompleteMission = async (mission: Mission) => {
-    setInFlightMissionId(mission.id);
+  const handleCompleteMission = async (id: number) => {
+    setInFlightMissionId(id);
     setActionError(null);
     try {
-      await missionApi.complete(mission.id);
+      await missionApi.complete(id);
       await loadData();
     } catch (err) {
       const message =
@@ -237,22 +228,17 @@ export function MissionsPage() {
           : err instanceof Error
           ? err.message
           : 'Failed to complete mission.';
-      alert(message);
+      setActionError(message);
     } finally {
       setInFlightMissionId(null);
     }
   };
 
-  const handleAbortMission = async (mission: Mission) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to ABORT mission "${mission.name}"? This action is irreversible.`,
-    );
-    if (!confirmed) return;
-
-    setInFlightMissionId(mission.id);
+  const handleAbortMission = async (id: number) => {
+    setInFlightMissionId(id);
     setActionError(null);
     try {
-      await missionApi.abort(mission.id);
+      await missionApi.abort(id);
       await loadData();
     } catch (err) {
       const message =
@@ -261,7 +247,7 @@ export function MissionsPage() {
           : err instanceof Error
           ? err.message
           : 'Failed to abort mission.';
-      alert(message);
+      setActionError(message);
     } finally {
       setInFlightMissionId(null);
     }
@@ -269,233 +255,227 @@ export function MissionsPage() {
 
   return (
     <div>
-      {/* Page Header */}
-      <div className="page-header">
-        <div className="page-header__title">
-          <h2>Operational Missions</h2>
-          <p>Mission lifecycle tracking, fleet assignment, and tactical commands</p>
+      {/* Header */}
+      <div className="ops-page-header">
+        <div className="ops-page-title">
+          <h2>Mission Operations</h2>
+          <p>Tactical sorties planning, platform assignment, and flight lifecycle execution</p>
         </div>
-        <div className="page-header__actions">
+        <div className="ops-header-actions">
           <button
             type="button"
             className="btn btn--secondary btn--sm"
             onClick={loadData}
             disabled={isLoading}
           >
-            Refresh
+            <IconRefresh size={12} />
+            <span>Refresh</span>
           </button>
           {canModify && (
             <button
               type="button"
-              className="btn btn--primary"
+              className="btn btn--primary btn--sm"
               onClick={handleOpenCreateModal}
             >
-              + New Mission
+              <IconPlus size={12} />
+              <span>Plan Mission</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Stats Bar */}
-      <div className="stats-bar">
-        <div className="stats-chip">
-          <span className="stats-chip__label">Total Missions:</span>
-          <span className="stats-chip__value">{stats.total}</span>
+      {/* Stats Summary Row */}
+      <div className="ops-stats-row">
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Total Missions</span>
+          <span className="ops-stat-value text-mono">{stats.total}</span>
+          <span className="ops-stat-meta">Lifetime sorties</span>
         </div>
-        <div className="stats-chip">
-          <span className="stats-chip__label">Planned:</span>
-          <span className="stats-chip__value">{stats.planned}</span>
-        </div>
-        <div className="stats-chip">
-          <span className="stats-chip__label">Ready:</span>
-          <span className="stats-chip__value">{stats.ready}</span>
-        </div>
-        <div className="stats-chip">
-          <span className="stats-chip__label">Active:</span>
-          <span className="stats-chip__value stats-chip__value--accent">
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">In-Flight / Active</span>
+          <span className="ops-stat-value text-mono" style={{ color: 'var(--status-normal)' }}>
             {stats.active}
           </span>
+          <span className="ops-stat-meta">Currently running</span>
         </div>
-        <div className="stats-chip">
-          <span className="stats-chip__label">Completed:</span>
-          <span className="stats-chip__value">{stats.completed}</span>
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Ready / Assigned</span>
+          <span className="ops-stat-value text-mono" style={{ color: 'var(--accent)' }}>
+            {stats.ready}
+          </span>
+          <span className="ops-stat-meta">Awaiting start command</span>
         </div>
-        <div className="stats-chip">
-          <span className="stats-chip__label">Aborted:</span>
-          <span className="stats-chip__value">{stats.aborted}</span>
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Planned</span>
+          <span className="ops-stat-value text-mono" style={{ color: 'var(--text-secondary)' }}>
+            {stats.planned}
+          </span>
+          <span className="ops-stat-meta">Unassigned sorties</span>
+        </div>
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Completed / Aborted</span>
+          <span className="ops-stat-value text-mono">
+            {stats.completed} / {stats.aborted}
+          </span>
+          <span className="ops-stat-meta">Past operational record</span>
         </div>
       </div>
 
+      {/* Error alert banner */}
+      {(fetchError || actionError) && (
+        <div className="alert-banner alert-banner--error" role="alert">
+          <span>{fetchError || actionError}</span>
+        </div>
+      )}
+
       {/* Main Table */}
-      <div className="data-table-wrapper">
+      <div className="ops-table-container">
         {isLoading ? (
-          <div className="loading-container">
-            <div className="loading-spinner" />
-            <p>Loading mission operations...</p>
-          </div>
-        ) : fetchError ? (
-          <div className="empty-state">
-            <div className="empty-state__icon">&#9888;</div>
-            <h4>Failed to Load Missions</h4>
-            <p>{fetchError}</p>
-            <button
-              type="button"
-              className="btn btn--secondary btn--sm"
-              onClick={loadData}
-            >
-              Retry
-            </button>
+          <div className="ops-empty-state">
+            <div className="ops-spinner" />
+            <span className="ops-empty-desc">Loading operational mission logs...</span>
           </div>
         ) : missions.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state__icon">&#127919;</div>
-            <h4>No Missions Registered</h4>
-            <p>There are no operational missions planned. Plan a new mission.</p>
+          <div className="ops-empty-state">
+            <p className="ops-empty-title">No missions planned</p>
+            <p className="ops-empty-desc">Create your first operational mission to assign unmanned units.</p>
             {canModify && (
               <button
                 type="button"
                 className="btn btn--primary btn--sm"
                 onClick={handleOpenCreateModal}
               >
-                + Plan First Mission
+                <IconPlus size={12} />
+                <span>Plan First Mission</span>
               </button>
             )}
           </div>
         ) : (
-          <div className="data-table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Mission Name</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Assigned Vehicle</th>
-                  <th>Started At</th>
-                  <th>Completed At</th>
-                  {canModify && <th style={{ textAlign: 'right' }}>Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {missions.map((m) => {
-                  const assignedVehicle =
-                    m.vehicleId !== null ? vehicleMap.get(m.vehicleId) : null;
-                  const isOperating = inFlightMissionId === m.id;
+          <table className="ops-table">
+            <thead>
+              <tr>
+                <th style={{ width: '70px' }}>ID</th>
+                <th>Mission Callout</th>
+                <th style={{ width: '130px' }}>Type</th>
+                <th style={{ width: '120px' }}>Status</th>
+                <th>Assigned Unit</th>
+                <th>Started</th>
+                <th>Completed</th>
+                <th style={{ textAlign: 'right', width: '260px' }}>Lifecycle Controls</th>
+              </tr>
+            </thead>
+            <tbody>
+              {missions.map((m) => {
+                const assignedVehicle = m.vehicleId ? vehicleMap.get(m.vehicleId) : null;
+                const isOperating = inFlightMissionId === m.id;
 
-                  return (
-                    <tr key={m.id}>
-                      <td>
-                        <span className="text-mono text-muted">#{m.id}</span>
-                      </td>
-                      <td>
-                        <strong>{m.name}</strong>
-                      </td>
-                      <td>
-                        <span className="type-badge">{m.type}</span>
-                      </td>
-                      <td>
-                        <span className={getStatusBadgeClass(m.status)}>
-                          {m.status}
-                        </span>
-                      </td>
-                      <td>
-                        {assignedVehicle ? (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <strong>{assignedVehicle.name}</strong>
-                            <span className="text-mono text-muted" style={{ fontSize: '0.75rem' }}>
-                              (#{assignedVehicle.id})
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-muted" style={{ fontStyle: 'italic' }}>
-                            Unassigned
+                return (
+                  <tr key={m.id}>
+                    <td className="text-mono" style={{ color: 'var(--text-muted)' }}>
+                      #{m.id}
+                    </td>
+                    <td>
+                      <strong style={{ letterSpacing: '0.02em' }}>{m.name}</strong>
+                    </td>
+                    <td>
+                      <span className="tag tag--type">{m.type}</span>
+                    </td>
+                    <td>
+                      <span className={`tag tag--${m.status.toLowerCase()}`}>
+                        <span className="tag-dot" />
+                        {m.status}
+                      </span>
+                    </td>
+                    <td>
+                      {assignedVehicle ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                          <IconVehicles size={12} style={{ color: 'var(--text-secondary)' }} />
+                          <span style={{ fontWeight: 500 }}>{assignedVehicle.name}</span>
+                          <span className="tag tag--type" style={{ fontSize: '9px', padding: '1px 4px' }}>
+                            {assignedVehicle.type}
                           </span>
-                        )}
-                      </td>
-                      <td className="text-muted">{formatDateTime(m.startedAt)}</td>
-                      <td className="text-muted">{formatDateTime(m.completedAt)}</td>
-                      {canModify && (
-                        <td style={{ textAlign: 'right' }}>
-                          <div
-                            className="btn-group"
-                            style={{ justifyContent: 'flex-end' }}
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>Unassigned</span>
+                      )}
+                    </td>
+                    <td className="text-mono" style={{ color: 'var(--text-secondary)' }}>
+                      {formatDateTime(m.startedAt)}
+                    </td>
+                    <td className="text-mono" style={{ color: 'var(--text-muted)' }}>
+                      {formatDateTime(m.completedAt)}
+                    </td>
+                    <td>
+                      <div className="ops-table-actions">
+                        {/* Telemetry stream link if vehicle assigned */}
+                        {m.vehicleId && (
+                          <Link
+                            to={`/telemetry?vehicleId=${m.vehicleId}`}
+                            className="btn btn--ghost btn--xs"
+                            title="Monitor Live Telemetry"
                           >
-                            {/* PLANNED: Assign Vehicle */}
-                            {m.status === 'PLANNED' && (
+                            <IconRadio size={11} />
+                            <span>Feed</span>
+                          </Link>
+                        )}
+
+                        {canModify && (
+                          <>
+                            {(m.status === 'PLANNED' || m.status === 'READY') && (
                               <button
                                 type="button"
-                                className="btn btn--primary btn--sm"
+                                className="btn btn--secondary btn--xs"
                                 onClick={() => handleOpenAssignModal(m)}
                                 disabled={isOperating}
                               >
-                                Assign Vehicle
+                                <span>{m.vehicleId ? 'Reassign' : 'Assign'}</span>
                               </button>
                             )}
 
-                            {/* READY: Reassign Vehicle or Start Mission */}
                             {m.status === 'READY' && (
-                              <>
-                                <button
-                                  type="button"
-                                  className="btn btn--secondary btn--sm"
-                                  onClick={() => handleOpenAssignModal(m)}
-                                  disabled={isOperating}
-                                  title="Change assigned vehicle"
-                                >
-                                  Reassign
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn--success btn--sm"
-                                  onClick={() => handleStartMission(m)}
-                                  disabled={isOperating}
-                                >
-                                  {isOperating ? 'Starting...' : 'Start'}
-                                </button>
-                              </>
-                            )}
-
-                            {/* ACTIVE: Complete or Abort */}
-                            {m.status === 'ACTIVE' && (
-                              <>
-                                <button
-                                  type="button"
-                                  className="btn btn--success btn--sm"
-                                  onClick={() => handleCompleteMission(m)}
-                                  disabled={isOperating}
-                                >
-                                  {isOperating ? 'Completing...' : 'Complete'}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn--danger btn--sm"
-                                  onClick={() => handleAbortMission(m)}
-                                  disabled={isOperating}
-                                >
-                                  {isOperating ? 'Aborting...' : 'Abort'}
-                                </button>
-                              </>
-                            )}
-
-                            {/* COMPLETED or ABORTED: No further actions */}
-                            {(m.status === 'COMPLETED' ||
-                              m.status === 'ABORTED') && (
-                              <span
-                                className="text-muted"
-                                style={{ fontSize: '0.8rem' }}
+                              <button
+                                type="button"
+                                className="btn btn--primary btn--xs"
+                                onClick={() => void handleStartMission(m.id)}
+                                disabled={isOperating}
                               >
-                                Finished
-                              </span>
+                                <span>Start</span>
+                              </button>
                             )}
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+
+                            {m.status === 'ACTIVE' && (
+                              <button
+                                type="button"
+                                className="btn btn--secondary btn--xs"
+                                onClick={() => void handleCompleteMission(m.id)}
+                                disabled={isOperating}
+                                style={{ color: 'var(--status-normal)' }}
+                              >
+                                <IconCheckCircle size={11} />
+                                <span>Complete</span>
+                              </button>
+                            )}
+
+                            {(m.status === 'READY' || m.status === 'ACTIVE') && (
+                              <button
+                                type="button"
+                                className="btn btn--danger btn--xs"
+                                onClick={() => void handleAbortMission(m.id)}
+                                disabled={isOperating}
+                              >
+                                <IconStopCircle size={11} />
+                                <span>Abort</span>
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
 
@@ -506,41 +486,43 @@ export function MissionsPage() {
             <div className="modal-header">
               <div>
                 <h3>Plan New Mission</h3>
-                <p>Register mission tactical profile in PLANNED status</p>
+                <p>Define operational mission objective and sortie profile</p>
               </div>
               <button
                 type="button"
                 className="modal-close-btn"
                 onClick={() => !isSubmitting && setIsCreateModalOpen(false)}
               >
-                &times;
+                <IconClose size={14} />
               </button>
             </div>
 
             <form onSubmit={handleCreateSubmit}>
               <div className="modal-body">
                 {actionError && (
-                  <div className="alert alert--error">{actionError}</div>
+                  <div className="alert-banner alert-banner--error">{actionError}</div>
                 )}
 
-                <label className="field">
-                  <span>Mission Name</span>
+                <div className="field">
+                  <label htmlFor="create-mis-name">Mission Callout / Name</label>
                   <input
+                    id="create-mis-name"
                     type="text"
                     required
-                    maxLength={150}
-                    placeholder="e.g. Operation Northern Watch, Perimeter Sweep"
+                    maxLength={100}
+                    placeholder="e.g. Operation Nightfall, Recon-Sector-4"
                     value={createForm.name}
                     onChange={(e) =>
                       setCreateForm({ ...createForm, name: e.target.value })
                     }
                     disabled={isSubmitting}
                   />
-                </label>
+                </div>
 
-                <label className="field">
-                  <span>Mission Type</span>
+                <div className="field">
+                  <label htmlFor="create-mis-type">Sortie Profile / Type</label>
                   <select
+                    id="create-mis-type"
                     value={createForm.type}
                     onChange={(e) =>
                       setCreateForm({
@@ -556,13 +538,13 @@ export function MissionsPage() {
                       </option>
                     ))}
                   </select>
-                </label>
+                </div>
               </div>
 
               <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn btn--ghost"
+                  className="btn btn--secondary btn--sm"
                   onClick={() => setIsCreateModalOpen(false)}
                   disabled={isSubmitting}
                 >
@@ -570,10 +552,10 @@ export function MissionsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="btn btn--primary"
+                  className="btn btn--primary btn--sm"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Creating...' : 'Plan Mission'}
+                  {isSubmitting ? 'Planning...' : 'Create Mission'}
                 </button>
               </div>
             </form>
@@ -587,33 +569,28 @@ export function MissionsPage() {
           <div className="modal-card">
             <div className="modal-header">
               <div>
-                <h3>Assign Vehicle to Mission</h3>
-                <p>
-                  Assigning vehicle to &quot;{assignModalMission.name}&quot; (Status: {assignModalMission.status})
-                </p>
+                <h3>Assign Platform: {assignModalMission.name}</h3>
+                <p>Select deployable ACTIVE unit for this sortie</p>
               </div>
               <button
                 type="button"
                 className="modal-close-btn"
                 onClick={() => !isSubmitting && setAssignModalMission(null)}
               >
-                &times;
+                <IconClose size={14} />
               </button>
             </div>
 
             <form onSubmit={handleAssignSubmit}>
               <div className="modal-body">
                 {actionError && (
-                  <div className="alert alert--error">{actionError}</div>
+                  <div className="alert-banner alert-banner--error">{actionError}</div>
                 )}
 
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-                  Note: By operational rules, only <strong>ACTIVE</strong> vehicles that are not currently engaged in other READY or ACTIVE missions can be assigned.
-                </p>
-
-                <label className="field">
-                  <span>Select Active Vehicle</span>
+                <div className="field">
+                  <label htmlFor="assign-veh-select">Select Deployable Platform</label>
                   <select
+                    id="assign-veh-select"
                     value={selectedVehicleId ?? ''}
                     onChange={(e) =>
                       setSelectedVehicleId(
@@ -622,42 +599,39 @@ export function MissionsPage() {
                     }
                     disabled={isSubmitting}
                   >
-                    <option value="">-- Choose a Vehicle --</option>
+                    <option value="">-- Choose Active Platform --</option>
                     {vehicles.map((v) => {
-                      const isCurrentMissionVehicle =
-                        assignModalMission.vehicleId === v.id;
+                      const isAssignedToThis = v.id === assignModalMission.vehicleId;
                       const isBusy =
-                        busyVehicleIds.has(v.id) && !isCurrentMissionVehicle;
+                        busyVehicleIds.has(v.id) && !isAssignedToThis;
                       const isNotActive = v.status !== 'ACTIVE';
-                      const isDisabled = isBusy || isNotActive;
-
-                      let label = `${v.name} (#${v.id}) [${v.type} - ${v.status}]`;
-                      if (isCurrentMissionVehicle) {
-                        label += ' (Currently Assigned)';
-                      } else if (isBusy) {
-                        label += ' (Busy in another mission)';
-                      } else if (isNotActive) {
-                        label += ' (Inactive)';
-                      }
+                      const disabled = isBusy || isNotActive;
 
                       return (
                         <option
                           key={v.id}
                           value={v.id}
-                          disabled={isDisabled}
+                          disabled={disabled}
                         >
-                          {label}
+                          {v.name} (#{v.id}) [{v.type}] - {v.status}
+                          {isAssignedToThis
+                            ? ' (Currently Assigned)'
+                            : isBusy
+                            ? ' (Assigned to other active mission)'
+                            : isNotActive
+                            ? ' (Not Active)'
+                            : ' (Deployable)'}
                         </option>
                       );
                     })}
                   </select>
-                </label>
+                </div>
               </div>
 
               <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn btn--ghost"
+                  className="btn btn--secondary btn--sm"
                   onClick={() => setAssignModalMission(null)}
                   disabled={isSubmitting}
                 >
@@ -665,10 +639,10 @@ export function MissionsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="btn btn--primary"
+                  className="btn btn--primary btn--sm"
                   disabled={isSubmitting || selectedVehicleId === null}
                 >
-                  {isSubmitting ? 'Assigning...' : 'Assign & Set Ready'}
+                  {isSubmitting ? 'Assigning...' : 'Confirm Assignment'}
                 </button>
               </div>
             </form>

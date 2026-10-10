@@ -1,20 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { notificationApi } from '../api/notificationApi';
+import {
+  IconCheck,
+  IconNotifications,
+  IconRefresh,
+} from '../components/Icons';
 import { useNotification } from '../context/NotificationContext';
 import { ApiError } from '../types/api';
 import type { NotificationItem } from '../types/notification';
 
 function formatDateTime(isoString?: string | null): string {
-  if (!isoString) return '-';
+  if (!isoString) return '—';
   try {
     const date = new Date(isoString);
     return date.toLocaleString(undefined, {
       month: 'short',
-      day: 'numeric',
+      day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
+      hour12: false,
     });
   } catch {
     return isoString;
@@ -26,6 +33,7 @@ export function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Filter: ALL, UNREAD, READ
   const [filter, setFilter] = useState<'ALL' | 'UNREAD' | 'READ'>('ALL');
@@ -36,10 +44,10 @@ export function NotificationsPage() {
   const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setActionError(null);
     try {
       const data = await notificationApi.getAll();
       setNotifications(data);
-      // Synchronize unread count with backend
       void refreshUnreadCount();
     } catch (err) {
       const message =
@@ -61,10 +69,10 @@ export function NotificationsPage() {
   const handleMarkAsRead = async (id: number) => {
     if (markingIds.has(id)) return;
 
+    setActionError(null);
     setMarkingIds((prev) => new Set(prev).add(id));
     try {
       const updated = await notificationApi.markAsRead(id);
-      // Update local state without full reload
       setNotifications((prev) =>
         prev.map((item) =>
           item.id === id
@@ -79,8 +87,8 @@ export function NotificationsPage() {
           ? err.message
           : err instanceof Error
           ? err.message
-          : 'Failed to mark notification as read';
-      alert(message);
+          : 'Failed to acknowledge notification';
+      setActionError(message);
     } finally {
       setMarkingIds((prev) => {
         const next = new Set(prev);
@@ -104,12 +112,14 @@ export function NotificationsPage() {
   }, [notifications, filter]);
 
   return (
-    <div>
-      {/* Header */}
+    <div className="page-view">
+      {/* Page Header */}
       <div className="page-header">
-        <div className="page-header__title">
-          <h2>System Notifications</h2>
-          <p>Operator notifications, automated incident alerts, and dispatch messaging</p>
+        <div className="page-header__left">
+          <h2 className="page-header__title">Notification Feed</h2>
+          <p className="page-header__subtitle">
+            Operator dispatch events, incident notifications, and telemetry threshold triggers
+          </p>
         </div>
         <div className="page-header__actions">
           <button
@@ -118,108 +128,121 @@ export function NotificationsPage() {
             onClick={fetchNotifications}
             disabled={isLoading}
           >
-            {isLoading ? 'Refreshing...' : 'Refresh Notifications'}
+            <IconRefresh size={13} />
+            <span>{isLoading ? 'Syncing...' : 'Sync Feed'}</span>
           </button>
         </div>
       </div>
 
-      {/* Metrics Bar */}
-      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <article className="stat-card">
-          <span className="stat-card__label">Total Notifications</span>
-          <strong className="stat-card__value">{metrics.total}</strong>
-          <span className="stat-card__meta">Received events</span>
-        </article>
+      {/* Metric Tiles */}
+      <div className="metric-strip">
+        <div className="metric-card">
+          <span className="metric-card__label">Total Events</span>
+          <span className="metric-card__value">{metrics.total}</span>
+          <span className="metric-card__meta">Recorded notifications</span>
+        </div>
 
-        <article className={`stat-card ${metrics.unread > 0 ? 'stat-card--warning' : ''}`}>
-          <span className="stat-card__label">Unread Notifications</span>
-          <strong
-            className="stat-card__value"
-            style={{ color: metrics.unread > 0 ? '#f39c12' : 'inherit' }}
+        <div className={`metric-card ${metrics.unread > 0 ? 'metric-card--alert' : ''}`}>
+          <span className="metric-card__label">Unacknowledged</span>
+          <span
+            className="metric-card__value"
+            style={{ color: metrics.unread > 0 ? 'var(--status-warning)' : 'inherit' }}
           >
             {metrics.unread}
-          </strong>
-          <span className="stat-card__meta">Pending acknowledgment</span>
-        </article>
+          </span>
+          <span className="metric-card__meta">Action required</span>
+        </div>
 
-        <article className="stat-card">
-          <span className="stat-card__label">Read / Acknowledged</span>
-          <strong className="stat-card__value" style={{ color: 'var(--accent)' }}>
+        <div className="metric-card">
+          <span className="metric-card__label">Acknowledged</span>
+          <span className="metric-card__value" style={{ color: 'var(--text-secondary)' }}>
             {metrics.read}
-          </strong>
-          <span className="stat-card__meta">Archived history</span>
-        </article>
-      </div>
-
-      {/* Filter Bar */}
-      <div className="telemetry-toolbar" style={{ marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Filter View:</span>
-          {(['ALL', 'UNREAD', 'READ'] as const).map((f) => (
-            <button
-              key={f}
-              type="button"
-              className={`btn btn--sm ${filter === f ? 'btn--primary' : 'btn--ghost'}`}
-              onClick={() => setFilter(f)}
-            >
-              {f === 'UNREAD' ? `UNREAD (${metrics.unread})` : f}
-            </button>
-          ))}
+          </span>
+          <span className="metric-card__meta">Archived in log</span>
         </div>
       </div>
 
-      {/* Error display */}
+      {/* Inline banners */}
       {error && (
-        <div className="alert alert--error" style={{ marginBottom: '1.5rem' }}>
-          {error}
+        <div className="alert-banner alert-banner--error" role="alert">
+          <span>{error}</span>
         </div>
       )}
 
-      {/* Notifications Table */}
-      <div className="data-table-wrapper">
-        <div
-          style={{
-            padding: '1rem 1.25rem',
-            borderBottom: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div>
-            <h3 style={{ margin: 0, fontSize: '1.05rem' }}>Notification Feed</h3>
-            <p style={{ margin: '0.2rem 0 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-              Showing {filteredNotifications.length} of {notifications.length} events
-            </p>
+      {actionError && (
+        <div className="alert-banner alert-banner--error" role="alert">
+          <span>{actionError}</span>
+        </div>
+      )}
+
+      {/* Main Panel */}
+      <div className="ops-panel">
+        <div className="ops-panel__header">
+          <div className="ops-panel__title">
+            <IconNotifications size={14} style={{ color: 'var(--accent)' }} />
+            <span>Dispatch Inbox</span>
+            <span className="text-muted" style={{ fontSize: '11px', fontWeight: 400 }}>
+              ({filteredNotifications.length} of {notifications.length} displayed)
+            </span>
+          </div>
+
+          <div className="ops-panel__toolbar">
+            <div className="btn-group">
+              <button
+                type="button"
+                className={`btn btn--xs ${filter === 'ALL' ? 'btn--secondary' : 'btn--ghost'}`}
+                onClick={() => setFilter('ALL')}
+              >
+                ALL ({metrics.total})
+              </button>
+              <button
+                type="button"
+                className={`btn btn--xs ${filter === 'UNREAD' ? 'btn--secondary' : 'btn--ghost'}`}
+                onClick={() => setFilter('UNREAD')}
+              >
+                UNREAD ({metrics.unread})
+              </button>
+              <button
+                type="button"
+                className={`btn btn--xs ${filter === 'READ' ? 'btn--secondary' : 'btn--ghost'}`}
+                onClick={() => setFilter('READ')}
+              >
+                READ ({metrics.read})
+              </button>
+            </div>
           </div>
         </div>
 
         {isLoading ? (
-          <div className="loading-container">
-            <div className="loading-spinner" />
-            <p>Loading notification feed...</p>
+          <div className="ops-empty-state">
+            <div className="ops-spinner" />
+            <span style={{ fontSize: '12px', marginTop: '0.5rem', color: 'var(--text-muted)' }}>
+              Querying notification service...
+            </span>
           </div>
         ) : filteredNotifications.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state__icon">&#128276;</div>
-            <h4>No Notifications</h4>
-            <p>
+          <div className="ops-empty-state">
+            <IconNotifications size={24} style={{ color: 'var(--text-muted)' }} />
+            <h4 className="ops-empty-title">
+              {filter === 'UNREAD' ? 'Inbox Clear' : 'No Events Found'}
+            </h4>
+            <p className="ops-empty-desc">
               {filter === 'UNREAD'
-                ? 'All caught up! No unread notifications.'
-                : 'No notifications found in the system log.'}
+                ? 'All operator notifications have been acknowledged.'
+                : 'No notification records match the current filter criteria.'}
             </p>
           </div>
         ) : (
-          <div className="data-table-container">
-            <table className="data-table">
+          <div className="ops-table-container">
+            <table className="ops-table">
               <thead>
                 <tr>
-                  <th>Status</th>
-                  <th>Message</th>
-                  <th>Alert ID</th>
-                  <th>Received</th>
-                  <th>Read At</th>
-                  <th style={{ textAlign: 'right' }}>Action</th>
+                  <th style={{ width: '110px' }}>State</th>
+                  <th>Notification Message</th>
+                  <th style={{ width: '100px' }}>Alert Ref</th>
+                  <th style={{ width: '160px' }}>Timestamp</th>
+                  <th style={{ width: '160px' }}>Acknowledged</th>
+                  <th style={{ width: '110px', textAlign: 'right' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -232,33 +255,47 @@ export function NotificationsPage() {
                     >
                       <td>
                         {!item.read ? (
-                          <span className="alert-badge alert-badge--unread">● UNREAD</span>
+                          <span className="tag tag--warning">
+                            <span className="tag-dot" />
+                            UNREAD
+                          </span>
                         ) : (
-                          <span className="alert-badge alert-badge--status-resolved">
-                            ✓ READ
+                          <span className="tag tag--neutral">
+                            READ
                           </span>
                         )}
                       </td>
                       <td>
-                        <strong
+                        <span
                           style={{
-                            color: !item.read ? '#fff' : 'var(--text-muted)',
                             fontWeight: !item.read ? 600 : 400,
+                            color: !item.read ? 'var(--text-primary)' : 'var(--text-secondary)',
                           }}
                         >
                           {item.message}
-                        </strong>
+                        </span>
                       </td>
                       <td>
-                        <span className="text-mono text-muted">#{item.alertId}</span>
+                        <Link
+                          to="/alerts"
+                          className="text-mono"
+                          style={{
+                            color: 'var(--accent)',
+                            fontSize: '11px',
+                            textDecoration: 'none',
+                          }}
+                          title="View incident log"
+                        >
+                          #{item.alertId}
+                        </Link>
                       </td>
                       <td>
-                        <span className="text-mono text-muted">
+                        <span className="text-mono" style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                           {formatDateTime(item.createdAt)}
                         </span>
                       </td>
                       <td>
-                        <span className="text-mono text-muted">
+                        <span className="text-mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                           {formatDateTime(item.readAt)}
                         </span>
                       </td>
@@ -266,20 +303,16 @@ export function NotificationsPage() {
                         {!item.read ? (
                           <button
                             type="button"
-                            className="btn btn--sm btn--primary"
+                            className="btn btn--secondary btn--xs"
                             onClick={() => handleMarkAsRead(item.id)}
                             disabled={isMarking}
                           >
-                            {isMarking ? 'Updating...' : 'Mark as Read'}
+                            <IconCheck size={11} />
+                            <span>{isMarking ? 'Updating...' : 'Ack'}</span>
                           </button>
                         ) : (
-                          <span
-                            style={{
-                              color: 'var(--text-muted)',
-                              fontSize: '0.85rem',
-                            }}
-                          >
-                            Acknowledged
+                          <span className="text-muted" style={{ fontSize: '11px' }}>
+                            Ack'd
                           </span>
                         )}
                       </td>

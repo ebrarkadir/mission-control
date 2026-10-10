@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { alertApi } from '../api/alertApi';
 import { vehicleApi } from '../api/vehicleApi';
+import {
+  IconBattery,
+  IconCheck,
+  IconRadio,
+  IconRefresh,
+  IconThermometer,
+} from '../components/Icons';
 import { ApiError } from '../types/api';
 import type { Alert, AlertSeverity, AlertStatus, AlertType } from '../types/alert';
 import type { Vehicle } from '../types/vehicle';
@@ -22,38 +30,76 @@ function formatDateTime(isoString?: string | null): string {
   }
 }
 
-function getTypeBadge(type: AlertType) {
+function renderTypeTag(type: AlertType) {
   switch (type) {
     case 'LOW_BATTERY':
-      return <span className="alert-badge alert-badge--type-battery">⚡ LOW BATTERY</span>;
+      return (
+        <span className="tag tag--warning">
+          <IconBattery size={11} />
+          <span>LOW BATTERY</span>
+        </span>
+      );
     case 'HIGH_TEMPERATURE':
-      return <span className="alert-badge alert-badge--type-temp">🔥 HIGH TEMP</span>;
+      return (
+        <span className="tag tag--critical">
+          <IconThermometer size={11} />
+          <span>HIGH TEMP</span>
+        </span>
+      );
     case 'CONNECTION_LOST':
-      return <span className="alert-badge alert-badge--type-conn">📡 CONNECTION LOST</span>;
+      return (
+        <span className="tag tag--critical">
+          <IconRadio size={11} />
+          <span>LINK LOST</span>
+        </span>
+      );
   }
 }
 
-function getSeverityBadge(severity: AlertSeverity) {
+function renderSeverityTag(severity: AlertSeverity) {
   switch (severity) {
     case 'CRITICAL':
-      return <span className="alert-badge alert-badge--sev-critical">CRITICAL</span>;
+      return (
+        <span className="tag tag--critical">
+          <span>CRITICAL</span>
+        </span>
+      );
     case 'WARNING':
-      return <span className="alert-badge alert-badge--sev-warning">WARNING</span>;
+      return (
+        <span className="tag tag--warning">
+          <span>WARNING</span>
+        </span>
+      );
   }
 }
 
-function getStatusBadge(status: AlertStatus) {
+function renderStatusTag(status: AlertStatus) {
   switch (status) {
     case 'OPEN':
-      return <span className="alert-badge alert-badge--status-open">● OPEN</span>;
+      return (
+        <span className="tag tag--critical">
+          <span className="tag-dot" />
+          <span>OPEN</span>
+        </span>
+      );
     case 'RESOLVED':
-      return <span className="alert-badge alert-badge--status-resolved">✓ RESOLVED</span>;
+      return (
+        <span className="tag tag--resolved">
+          <IconCheck size={10} />
+          <span>RESOLVED</span>
+        </span>
+      );
   }
 }
 
 export function AlertsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialVehicleId = searchParams.get('vehicleId');
+
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(
+    initialVehicleId ? Number(initialVehicleId) : null,
+  );
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(true);
 
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -116,11 +162,12 @@ export function AlertsPage() {
 
   useEffect(() => {
     if (selectedVehicleId !== null) {
+      setSearchParams({ vehicleId: String(selectedVehicleId) }, { replace: true });
       void loadAlerts(selectedVehicleId);
     } else {
       setAlerts([]);
     }
-  }, [selectedVehicleId, loadAlerts]);
+  }, [selectedVehicleId, loadAlerts, setSearchParams]);
 
   // Metrics
   const metrics = useMemo(() => {
@@ -131,7 +178,6 @@ export function AlertsPage() {
     return { total, open, resolved, critical };
   }, [alerts]);
 
-  // Filtered list
   const filteredAlerts = useMemo(() => {
     if (statusFilter === 'ALL') return alerts;
     return alerts.filter((a) => a.status === statusFilter);
@@ -146,206 +192,187 @@ export function AlertsPage() {
   return (
     <div>
       {/* Header */}
-      <div className="page-header">
-        <div className="page-header__title">
-          <h2>Vehicle Alerts & Incidents</h2>
-          <p>Real-time operational alerts, telemetry anomaly tracking, and resolution history</p>
+      <div className="ops-page-header">
+        <div className="ops-page-title">
+          <h2>Incident & Alert Logs</h2>
+          <p>Autonomous unit safety anomalies, telemetry thresholds, and automated event resolution</p>
         </div>
-        <div className="page-header__actions">
+        <div className="ops-header-actions">
           <button
             type="button"
             className="btn btn--secondary btn--sm"
             onClick={handleRefresh}
             disabled={isLoadingAlerts || selectedVehicleId === null}
           >
-            {isLoadingAlerts ? 'Refreshing...' : 'Refresh Alerts'}
+            <IconRefresh size={12} />
+            <span>Refresh</span>
           </button>
         </div>
       </div>
 
-      {/* Vehicle Selector Toolbar */}
-      <div className="telemetry-toolbar">
-        <div className="telemetry-selector-group">
-          <label htmlFor="alert-vehicle-select">Target Vehicle:</label>
+      {/* Target Unit Selector Toolbar */}
+      <div className="ops-toolbar">
+        <div className="ops-toolbar__group">
+          <span className="ops-label">Target Unit:</span>
           {isLoadingVehicles ? (
-            <span className="text-muted">Loading fleet...</span>
+            <span style={{ color: 'var(--text-muted)' }}>Loading fleet...</span>
           ) : vehicles.length === 0 ? (
-            <span className="text-muted">No vehicles available in registry</span>
+            <span style={{ color: 'var(--text-muted)' }}>No vehicles in registry</span>
           ) : (
             <select
-              id="alert-vehicle-select"
+              className="select"
+              style={{ width: 'auto', minWidth: '260px' }}
               value={selectedVehicleId ?? ''}
               onChange={(e) => setSelectedVehicleId(Number(e.target.value))}
             >
               {vehicles.map((v) => (
                 <option key={v.id} value={v.id}>
-                  {v.name} (#{v.id}) — [{v.type} | {v.status}]
+                  #{v.id} {v.name} [{v.type}] — {v.status}
                 </option>
               ))}
             </select>
           )}
+
+          {selectedVehicle && (
+            <span className={`tag tag--${selectedVehicle.status.toLowerCase()}`}>
+              <span className="tag-dot" />
+              {selectedVehicle.status}
+            </span>
+          )}
         </div>
 
-        {/* Filter Toolbar */}
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Status Filter:</span>
+        {/* Filter View Controls */}
+        <div className="ops-toolbar__group">
+          <span className="ops-label">Filter:</span>
           {(['ALL', 'OPEN', 'RESOLVED'] as const).map((filter) => (
             <button
               key={filter}
               type="button"
-              className={`btn btn--sm ${
-                statusFilter === filter ? 'btn--primary' : 'btn--ghost'
+              className={`btn btn--xs ${
+                statusFilter === filter ? 'btn--primary' : 'btn--secondary'
               }`}
               onClick={() => setStatusFilter(filter)}
             >
-              {filter}
+              <span>{filter}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Error display */}
+      {/* Metric Cards Row */}
+      <div className="ops-stats-row">
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Total Incidents</span>
+          <span className="ops-stat-value text-mono">{metrics.total}</span>
+          <span className="ops-stat-meta">Lifetime recorded</span>
+        </div>
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Open Incidents</span>
+          <span
+            className="ops-stat-value text-mono"
+            style={{ color: metrics.open > 0 ? 'var(--status-warning)' : 'inherit' }}
+          >
+            {metrics.open}
+          </span>
+          <span className="ops-stat-meta">Pending clearance</span>
+        </div>
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Open Critical</span>
+          <span
+            className="ops-stat-value text-mono"
+            style={{ color: metrics.critical > 0 ? 'var(--status-critical)' : 'inherit' }}
+          >
+            {metrics.critical}
+          </span>
+          <span className="ops-stat-meta">Immediate operational risk</span>
+        </div>
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Resolved</span>
+          <span className="ops-stat-value text-mono" style={{ color: 'var(--status-normal)' }}>
+            {metrics.resolved}
+          </span>
+          <span className="ops-stat-meta">Auto-cleared telemetry</span>
+        </div>
+      </div>
+
+      {/* Error alert banner */}
       {error && (
-        <div className="alert alert--error" style={{ marginBottom: '1.5rem' }}>
-          {error}
+        <div className="alert-banner alert-banner--error" role="alert">
+          <span>{error}</span>
         </div>
       )}
 
-      {/* Metrics Summary */}
-      <div className="stats-grid" style={{ marginBottom: '1.5rem' }}>
-        <article className="stat-card">
-          <span className="stat-card__label">Total Alerts</span>
-          <strong className="stat-card__value">{metrics.total}</strong>
-          <span className="stat-card__meta">Recorded lifetime</span>
-        </article>
-
-        <article className={`stat-card ${metrics.open > 0 ? 'stat-card--warning' : ''}`}>
-          <span className="stat-card__label">Open Alerts</span>
-          <strong
-            className="stat-card__value"
-            style={{ color: metrics.open > 0 ? '#f39c12' : 'inherit' }}
-          >
-            {metrics.open}
-          </strong>
-          <span className="stat-card__meta">Requiring attention</span>
-        </article>
-
-        <article className={`stat-card ${metrics.critical > 0 ? 'stat-card--critical' : ''}`}>
-          <span className="stat-card__label">Open Critical</span>
-          <strong
-            className="stat-card__value"
-            style={{ color: metrics.critical > 0 ? 'var(--danger)' : 'inherit' }}
-          >
-            {metrics.critical}
-          </strong>
-          <span className="stat-card__meta">Immediate threat</span>
-        </article>
-
-        <article className="stat-card">
-          <span className="stat-card__label">Resolved</span>
-          <strong className="stat-card__value" style={{ color: 'var(--accent)' }}>
-            {metrics.resolved}
-          </strong>
-          <span className="stat-card__meta">Normal state restored</span>
-        </article>
-      </div>
-
-      {/* Alerts Table */}
-      <div className="data-table-wrapper">
-        <div
-          style={{
-            padding: '1rem 1.25rem',
-            borderBottom: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div>
-            <h3 style={{ margin: 0, fontSize: '1.05rem' }}>
-              Alert History {selectedVehicle ? `for ${selectedVehicle.name} (#${selectedVehicle.id})` : ''}
-            </h3>
-            <p style={{ margin: '0.2rem 0 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-              Showing {filteredAlerts.length} of {alerts.length} total events
-            </p>
-          </div>
-        </div>
-
+      {/* Main Table */}
+      <div className="ops-table-container">
         {isLoadingAlerts ? (
-          <div className="loading-container">
-            <div className="loading-spinner" />
-            <p>Loading vehicle alerts...</p>
-          </div>
-        ) : !selectedVehicle ? (
-          <div className="empty-state">
-            <div className="empty-state__icon">&#128747;</div>
-            <h4>No Vehicle Selected</h4>
-            <p>Please select a vehicle to inspect alerts.</p>
+          <div className="ops-empty-state">
+            <div className="ops-spinner" />
+            <span className="ops-empty-desc">Fetching incident records from alert service...</span>
           </div>
         ) : filteredAlerts.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state__icon">&#9989;</div>
-            <h4>No Alerts Found</h4>
-            <p>
-              {statusFilter === 'ALL'
-                ? `No alert records exist for vehicle "${selectedVehicle.name}". All systems are operating normally.`
-                : `No ${statusFilter.toLowerCase()} alerts for vehicle "${selectedVehicle.name}".`}
+          <div className="ops-empty-state">
+            <p className="ops-empty-title">No incidents matching filter</p>
+            <p className="ops-empty-desc">
+              {statusFilter === 'OPEN'
+                ? 'All alerts for this unit are currently resolved.'
+                : 'No alert entries logged for this unmanned unit.'}
             </p>
           </div>
         ) : (
-          <div className="data-table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Vehicle</th>
-                  <th>Type</th>
-                  <th>Severity</th>
-                  <th>Message</th>
-                  <th>Status</th>
-                  <th>Created At</th>
-                  <th>Resolved At</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAlerts.map((alert) => {
-                  const isOpenCritical = alert.status === 'OPEN' && alert.severity === 'CRITICAL';
-                  return (
-                    <tr
-                      key={alert.id}
-                      className={isOpenCritical ? 'alert-row--critical' : undefined}
-                    >
-                      <td>
-                        <span className="text-mono">#{alert.id}</span>
-                      </td>
-                      <td>
-                        <strong>{selectedVehicle.name}</strong>{' '}
-                        <span className="text-muted text-mono">(#{alert.vehicleId})</span>
-                      </td>
-                      <td>{getTypeBadge(alert.type)}</td>
-                      <td>{getSeverityBadge(alert.severity)}</td>
-                      <td>
-                        <span style={{ fontWeight: alert.status === 'OPEN' ? 600 : 'normal' }}>
-                          {alert.message}
-                        </span>
-                      </td>
-                      <td>{getStatusBadge(alert.status)}</td>
-                      <td>
-                        <span className="text-mono text-muted">
-                          {formatDateTime(alert.createdAt)}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="text-mono text-muted">
-                          {formatDateTime(alert.resolvedAt)}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <table className="ops-table">
+            <thead>
+              <tr>
+                <th style={{ width: '60px' }}>ID</th>
+                <th style={{ width: '130px' }}>Type</th>
+                <th style={{ width: '90px' }}>Severity</th>
+                <th style={{ width: '100px' }}>Status</th>
+                <th>Incident Message</th>
+                <th style={{ width: '140px' }}>Timestamp</th>
+                <th style={{ width: '140px' }}>Resolved At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAlerts.map((alert) => {
+                const isOpenCritical = alert.status === 'OPEN' && alert.severity === 'CRITICAL';
+
+                return (
+                  <tr
+                    key={alert.id}
+                    style={{
+                      backgroundColor: isOpenCritical
+                        ? 'rgba(239, 68, 68, 0.05)'
+                        : alert.status === 'RESOLVED'
+                        ? 'transparent'
+                        : 'rgba(245, 158, 11, 0.03)',
+                    }}
+                  >
+                    <td className="text-mono" style={{ color: 'var(--text-muted)' }}>
+                      #{alert.id}
+                    </td>
+                    <td>{renderTypeTag(alert.type)}</td>
+                    <td>{renderSeverityTag(alert.severity)}</td>
+                    <td>{renderStatusTag(alert.status)}</td>
+                    <td>
+                      <span
+                        style={{
+                          fontWeight: alert.status === 'OPEN' ? 600 : 400,
+                          color: alert.status === 'OPEN' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        }}
+                      >
+                        {alert.message}
+                      </span>
+                    </td>
+                    <td className="text-mono" style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                      {formatDateTime(alert.createdAt)}
+                    </td>
+                    <td className="text-mono" style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                      {formatDateTime(alert.resolvedAt)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
     </div>

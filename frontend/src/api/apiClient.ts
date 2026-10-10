@@ -1,7 +1,12 @@
 import { authSession } from '../auth/authSession';
 import { ApiError, type ApiErrorBody } from '../types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const rawBaseUrl = import.meta.env.VITE_API_BASE_URL;
+export const API_BASE_URL = (
+  typeof rawBaseUrl === 'string' && rawBaseUrl.trim() !== ''
+    ? rawBaseUrl.trim()
+    : 'http://localhost:8084'
+).replace(/\/+$/, '');
 
 type UnauthorizedHandler = () => void;
 
@@ -24,10 +29,33 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
 
 async function parseErrorBody(response: Response): Promise<ApiErrorBody | undefined> {
   try {
-    return (await response.json()) as ApiErrorBody;
+    const data = await response.json();
+    if (data && typeof data === 'object') {
+      return data as ApiErrorBody;
+    }
+    if (typeof data === 'string' && data.trim() !== '') {
+      return { message: data };
+    }
+    return undefined;
   } catch {
     return undefined;
   }
+}
+
+function formatErrorMessage(response: Response, errorBody?: ApiErrorBody): string {
+  if (errorBody?.message && typeof errorBody.message === 'string' && errorBody.message.trim() !== '') {
+    return errorBody.message;
+  }
+  if (errorBody?.error && typeof errorBody.error === 'string' && errorBody.error.trim() !== '') {
+    return errorBody.error;
+  }
+  if (response.status === 503) {
+    if (errorBody?.service && typeof errorBody.service === 'string' && errorBody.service.trim() !== '') {
+      return `${errorBody.service} is temporarily unavailable`;
+    }
+    return 'Service is temporarily unavailable (503)';
+  }
+  return response.statusText || `Request failed with status ${response.status}`;
 }
 
 export async function apiClient<T>(
@@ -48,7 +76,8 @@ export async function apiClient<T>(
     requestHeaders.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const response = await fetch(`${API_BASE_URL}${normalizedPath}`, {
     ...rest,
     headers: requestHeaders,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -67,11 +96,9 @@ export async function apiClient<T>(
       }
     }
 
-    throw new ApiError(
-      response.status,
-      errorBody?.message ?? response.statusText,
-      errorBody,
-    );
+    const message = formatErrorMessage(response, errorBody);
+
+    throw new ApiError(response.status, message, errorBody);
   }
 
   if (response.status === 204) {
@@ -80,3 +107,4 @@ export async function apiClient<T>(
 
   return (await response.json()) as T;
 }
+

@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 
 import { vehicleApi } from '../api/vehicleApi';
 import { useAuth } from '../auth/AuthContext';
+import {
+  IconAlerts,
+  IconClose,
+  IconEdit,
+  IconPlus,
+  IconRadio,
+  IconRefresh,
+  IconSettings,
+} from '../components/Icons';
 import { ApiError } from '../types/api';
 import type {
   CreateVehicleRequest,
@@ -30,17 +40,6 @@ function formatDateTime(isoString?: string | null): string {
   }
 }
 
-function getStatusBadgeClass(status: VehicleStatus): string {
-  switch (status) {
-    case 'ACTIVE':
-      return 'status-badge status-badge--active';
-    case 'OFFLINE':
-      return 'status-badge status-badge--offline';
-    case 'MAINTENANCE':
-      return 'status-badge status-badge--maintenance';
-  }
-}
-
 export function VehiclesPage() {
   const { user } = useAuth();
   const canModify = user?.role === 'ADMIN' || user?.role === 'OPERATOR';
@@ -49,7 +48,7 @@ export function VehiclesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Modal states
+  // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [statusTargetVehicle, setStatusTargetVehicle] = useState<Vehicle | null>(null);
@@ -67,7 +66,7 @@ export function VehiclesPage() {
   });
   const [selectedStatus, setSelectedStatus] = useState<VehicleStatus>('ACTIVE');
 
-  // Submit states & error messages
+  // Submit states
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -94,7 +93,6 @@ export function VehiclesPage() {
     void fetchVehicles();
   }, [fetchVehicles]);
 
-  // Stats calculation
   const stats = useMemo(() => {
     const total = vehicles.length;
     const active = vehicles.filter((v) => v.status === 'ACTIVE').length;
@@ -216,151 +214,175 @@ export function VehiclesPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="page-header">
-        <div className="page-header__title">
+      {/* Page Header */}
+      <div className="ops-page-header">
+        <div className="ops-page-title">
           <h2>Fleet Registry</h2>
-          <p>Manage autonomous unmanned vehicles and operational fleet status</p>
+          <p>Autonomous unmanned air & ground units inventory and status tracking</p>
         </div>
-        <div className="page-header__actions">
+        <div className="ops-header-actions">
           <button
             type="button"
             className="btn btn--secondary btn--sm"
             onClick={fetchVehicles}
             disabled={isLoading}
           >
-            Refresh
+            <IconRefresh size={12} />
+            <span>Refresh</span>
           </button>
           {canModify && (
             <button
               type="button"
-              className="btn btn--primary"
+              className="btn btn--primary btn--sm"
               onClick={handleOpenCreateModal}
             >
-              + New Vehicle
+              <IconPlus size={12} />
+              <span>Register Unit</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Stats Bar */}
-      <div className="stats-bar">
-        <div className="stats-chip">
-          <span className="stats-chip__label">Total Fleet:</span>
-          <span className="stats-chip__value">{stats.total}</span>
+      {/* Stats Summary Row */}
+      <div className="ops-stats-row">
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Total Fleet</span>
+          <span className="ops-stat-value text-mono">{stats.total}</span>
+          <span className="ops-stat-meta">Registered units</span>
         </div>
-        <div className="stats-chip">
-          <span className="stats-chip__label">Active:</span>
-          <span className="stats-chip__value stats-chip__value--accent">
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Active Units</span>
+          <span className="ops-stat-value text-mono" style={{ color: 'var(--status-normal)' }}>
             {stats.active}
           </span>
+          <span className="ops-stat-meta">Mission deployable</span>
         </div>
-        <div className="stats-chip">
-          <span className="stats-chip__label">Offline:</span>
-          <span className="stats-chip__value">{stats.offline}</span>
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Offline</span>
+          <span className="ops-stat-value text-mono" style={{ color: 'var(--status-critical)' }}>
+            {stats.offline}
+          </span>
+          <span className="ops-stat-meta">Signal unlinked</span>
         </div>
-        <div className="stats-chip">
-          <span className="stats-chip__label">Maintenance:</span>
-          <span className="stats-chip__value">{stats.maintenance}</span>
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Maintenance</span>
+          <span className="ops-stat-value text-mono" style={{ color: 'var(--status-warning)' }}>
+            {stats.maintenance}
+          </span>
+          <span className="ops-stat-meta">Servicing / docked</span>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="data-table-wrapper">
+      {/* Main Table or State */}
+      {fetchError && (
+        <div className="alert-banner alert-banner--error" role="alert">
+          <span>{fetchError}</span>
+        </div>
+      )}
+
+      <div className="ops-table-container">
         {isLoading ? (
-          <div className="loading-container">
-            <div className="loading-spinner" />
-            <p>Loading vehicle registry...</p>
-          </div>
-        ) : fetchError ? (
-          <div className="empty-state">
-            <div className="empty-state__icon">&#9888;</div>
-            <h4>Failed to Load Vehicles</h4>
-            <p>{fetchError}</p>
-            <button
-              type="button"
-              className="btn btn--secondary btn--sm"
-              onClick={fetchVehicles}
-            >
-              Retry
-            </button>
+          <div className="ops-empty-state">
+            <div className="ops-spinner" />
+            <span className="ops-empty-desc">Loading fleet registry...</span>
           </div>
         ) : vehicles.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state__icon">&#128747;</div>
-            <h4>No Vehicles Registered</h4>
-            <p>The fleet registry is currently empty. Add your first vehicle.</p>
+          <div className="ops-empty-state">
+            <p className="ops-empty-title">Fleet registry is empty</p>
+            <p className="ops-empty-desc">No unmanned units are currently registered.</p>
             {canModify && (
               <button
                 type="button"
                 className="btn btn--primary btn--sm"
                 onClick={handleOpenCreateModal}
               >
-                + Register First Vehicle
+                <IconPlus size={12} />
+                <span>Register First Unit</span>
               </button>
             )}
           </div>
         ) : (
-          <div className="data-table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Vehicle Name</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Created At</th>
-                  <th>Updated At</th>
-                  {canModify && <th style={{ textAlign: 'right' }}>Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {vehicles.map((v) => (
-                  <tr key={v.id}>
-                    <td>
-                      <span className="text-mono text-muted">#{v.id}</span>
-                    </td>
-                    <td>
-                      <strong>{v.name}</strong>
-                    </td>
-                    <td>
-                      <span className="type-badge">{v.type}</span>
-                    </td>
-                    <td>
-                      <span className={getStatusBadgeClass(v.status)}>
-                        {v.status}
-                      </span>
-                    </td>
-                    <td className="text-muted">{formatDateTime(v.createdAt)}</td>
-                    <td className="text-muted">{formatDateTime(v.updatedAt)}</td>
-                    {canModify && (
-                      <td style={{ textAlign: 'right' }}>
-                        <div
-                          className="btn-group"
-                          style={{ justifyContent: 'flex-end' }}
-                        >
+          <table className="ops-table">
+            <thead>
+              <tr>
+                <th style={{ width: '70px' }}>ID</th>
+                <th>Callsign</th>
+                <th style={{ width: '90px' }}>Platform</th>
+                <th style={{ width: '130px' }}>Status</th>
+                <th>Registered</th>
+                <th>Updated</th>
+                <th style={{ textAlign: 'right', width: '220px' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vehicles.map((v) => (
+                <tr key={v.id}>
+                  <td className="text-mono" style={{ color: 'var(--text-muted)' }}>
+                    #{v.id}
+                  </td>
+                  <td>
+                    <strong style={{ letterSpacing: '0.02em' }}>{v.name}</strong>
+                  </td>
+                  <td>
+                    <span className="tag tag--type">{v.type}</span>
+                  </td>
+                  <td>
+                    <span className={`tag tag--${v.status.toLowerCase()}`}>
+                      <span className="tag-dot" />
+                      {v.status}
+                    </span>
+                  </td>
+                  <td className="text-mono" style={{ color: 'var(--text-secondary)' }}>
+                    {formatDateTime(v.createdAt)}
+                  </td>
+                  <td className="text-mono" style={{ color: 'var(--text-muted)' }}>
+                    {formatDateTime(v.updatedAt)}
+                  </td>
+                  <td>
+                    <div className="ops-table-actions">
+                      <Link
+                        to={`/telemetry?vehicleId=${v.id}`}
+                        className="btn btn--ghost btn--xs"
+                        title="Live Telemetry"
+                      >
+                        <IconRadio size={11} />
+                        <span>Stream</span>
+                      </Link>
+                      <Link
+                        to={`/alerts?vehicleId=${v.id}`}
+                        className="btn btn--ghost btn--xs"
+                        title="Vehicle Alerts"
+                      >
+                        <IconAlerts size={11} />
+                        <span>Alerts</span>
+                      </Link>
+                      {canModify && (
+                        <>
                           <button
                             type="button"
-                            className="btn btn--secondary btn--sm"
+                            className="btn btn--secondary btn--xs"
                             onClick={() => handleOpenStatusModal(v)}
+                            title="Update Status"
                           >
-                            Status
+                            <IconSettings size={11} />
+                            <span>State</span>
                           </button>
                           <button
                             type="button"
-                            className="btn btn--ghost btn--sm"
+                            className="btn btn--ghost btn--xs"
                             onClick={() => handleOpenEditModal(v)}
+                            title="Edit Vehicle"
                           >
-                            Edit
+                            <IconEdit size={11} />
                           </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 
@@ -370,42 +392,44 @@ export function VehiclesPage() {
           <div className="modal-card">
             <div className="modal-header">
               <div>
-                <h3>Register Vehicle</h3>
-                <p>Add a new autonomous unit to the fleet registry</p>
+                <h3>Register Unmanned Unit</h3>
+                <p>Assign callsign and operational platform type</p>
               </div>
               <button
                 type="button"
                 className="modal-close-btn"
                 onClick={() => !isSubmitting && setIsCreateModalOpen(false)}
               >
-                &times;
+                <IconClose size={14} />
               </button>
             </div>
 
             <form onSubmit={handleCreateSubmit}>
               <div className="modal-body">
                 {actionError && (
-                  <div className="alert alert--error">{actionError}</div>
+                  <div className="alert-banner alert-banner--error">{actionError}</div>
                 )}
 
-                <label className="field">
-                  <span>Vehicle Name</span>
+                <div className="field">
+                  <label htmlFor="create-veh-name">Callsign / Name</label>
                   <input
+                    id="create-veh-name"
                     type="text"
                     required
                     maxLength={100}
-                    placeholder="e.g. Falcon-1, Rover-Alpha"
+                    placeholder="e.g. Talon-01, Peregrine-Alpha"
                     value={createForm.name}
                     onChange={(e) =>
                       setCreateForm({ ...createForm, name: e.target.value })
                     }
                     disabled={isSubmitting}
                   />
-                </label>
+                </div>
 
-                <label className="field">
-                  <span>Vehicle Type</span>
+                <div className="field">
+                  <label htmlFor="create-veh-type">Platform Type</label>
                   <select
+                    id="create-veh-type"
                     value={createForm.type}
                     onChange={(e) =>
                       setCreateForm({
@@ -417,17 +441,16 @@ export function VehiclesPage() {
                   >
                     {VEHICLE_TYPES.map((t) => (
                       <option key={t} value={t}>
-                        {t === 'UAV'
-                          ? 'UAV (Unmanned Aerial Vehicle)'
-                          : 'UGV (Unmanned Ground Vehicle)'}
+                        {t} — {t === 'UAV' ? 'Unmanned Aerial Vehicle' : 'Unmanned Ground Vehicle'}
                       </option>
                     ))}
                   </select>
-                </label>
+                </div>
 
-                <label className="field">
-                  <span>Initial Status</span>
+                <div className="field">
+                  <label htmlFor="create-veh-status">Initial Readiness Status</label>
                   <select
+                    id="create-veh-status"
                     value={createForm.status}
                     onChange={(e) =>
                       setCreateForm({
@@ -443,13 +466,13 @@ export function VehiclesPage() {
                       </option>
                     ))}
                   </select>
-                </label>
+                </div>
               </div>
 
               <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn btn--ghost"
+                  className="btn btn--secondary btn--sm"
                   onClick={() => setIsCreateModalOpen(false)}
                   disabled={isSubmitting}
                 >
@@ -457,10 +480,10 @@ export function VehiclesPage() {
                 </button>
                 <button
                   type="submit"
-                  className="btn btn--primary"
+                  className="btn btn--primary btn--sm"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Registering...' : 'Register Vehicle'}
+                  {isSubmitting ? 'Registering...' : 'Register Unit'}
                 </button>
               </div>
             </form>
@@ -474,27 +497,28 @@ export function VehiclesPage() {
           <div className="modal-card">
             <div className="modal-header">
               <div>
-                <h3>Edit Vehicle #{editingVehicle.id}</h3>
-                <p>Modify vehicle specification and parameters</p>
+                <h3>Edit Unit #{editingVehicle.id}</h3>
+                <p>Modify callsign, platform, or operational profile</p>
               </div>
               <button
                 type="button"
                 className="modal-close-btn"
                 onClick={() => !isSubmitting && setEditingVehicle(null)}
               >
-                &times;
+                <IconClose size={14} />
               </button>
             </div>
 
             <form onSubmit={handleEditSubmit}>
               <div className="modal-body">
                 {actionError && (
-                  <div className="alert alert--error">{actionError}</div>
+                  <div className="alert-banner alert-banner--error">{actionError}</div>
                 )}
 
-                <label className="field">
-                  <span>Vehicle Name</span>
+                <div className="field">
+                  <label htmlFor="edit-veh-name">Callsign / Name</label>
                   <input
+                    id="edit-veh-name"
                     type="text"
                     required
                     maxLength={100}
@@ -504,11 +528,12 @@ export function VehiclesPage() {
                     }
                     disabled={isSubmitting}
                   />
-                </label>
+                </div>
 
-                <label className="field">
-                  <span>Vehicle Type</span>
+                <div className="field">
+                  <label htmlFor="edit-veh-type">Platform Type</label>
                   <select
+                    id="edit-veh-type"
                     value={editForm.type}
                     onChange={(e) =>
                       setEditForm({
@@ -520,15 +545,16 @@ export function VehiclesPage() {
                   >
                     {VEHICLE_TYPES.map((t) => (
                       <option key={t} value={t}>
-                        {t}
+                        {t} — {t === 'UAV' ? 'Unmanned Aerial Vehicle' : 'Unmanned Ground Vehicle'}
                       </option>
                     ))}
                   </select>
-                </label>
+                </div>
 
-                <label className="field">
-                  <span>Operational Status</span>
+                <div className="field">
+                  <label htmlFor="edit-veh-status">Operational Status</label>
                   <select
+                    id="edit-veh-status"
                     value={editForm.status}
                     onChange={(e) =>
                       setEditForm({
@@ -544,13 +570,13 @@ export function VehiclesPage() {
                       </option>
                     ))}
                   </select>
-                </label>
+                </div>
               </div>
 
               <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn btn--ghost"
+                  className="btn btn--secondary btn--sm"
                   onClick={() => setEditingVehicle(null)}
                   disabled={isSubmitting}
                 >
@@ -558,7 +584,7 @@ export function VehiclesPage() {
                 </button>
                 <button
                   type="submit"
-                  className="btn btn--primary"
+                  className="btn btn--primary btn--sm"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Saving...' : 'Save Changes'}
@@ -569,33 +595,34 @@ export function VehiclesPage() {
         </div>
       )}
 
-      {/* QUICK STATUS MODAL */}
+      {/* UPDATE STATUS MODAL */}
       {statusTargetVehicle && (
         <div className="modal-backdrop">
           <div className="modal-card">
             <div className="modal-header">
               <div>
-                <h3>Change Status: {statusTargetVehicle.name}</h3>
-                <p>Update operational availability in real-time</p>
+                <h3>Set Status: {statusTargetVehicle.name}</h3>
+                <p>Update operational readiness state</p>
               </div>
               <button
                 type="button"
                 className="modal-close-btn"
                 onClick={() => !isSubmitting && setStatusTargetVehicle(null)}
               >
-                &times;
+                <IconClose size={14} />
               </button>
             </div>
 
             <form onSubmit={handleStatusSubmit}>
               <div className="modal-body">
                 {actionError && (
-                  <div className="alert alert--error">{actionError}</div>
+                  <div className="alert-banner alert-banner--error">{actionError}</div>
                 )}
 
-                <label className="field">
-                  <span>Select New Status</span>
+                <div className="field">
+                  <label htmlFor="select-status">Target Readiness State</label>
                   <select
+                    id="select-status"
                     value={selectedStatus}
                     onChange={(e) =>
                       setSelectedStatus(e.target.value as VehicleStatus)
@@ -608,13 +635,13 @@ export function VehiclesPage() {
                       </option>
                     ))}
                   </select>
-                </label>
+                </div>
               </div>
 
               <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn btn--ghost"
+                  className="btn btn--secondary btn--sm"
                   onClick={() => setStatusTargetVehicle(null)}
                   disabled={isSubmitting}
                 >
@@ -622,10 +649,10 @@ export function VehiclesPage() {
                 </button>
                 <button
                   type="submit"
-                  className="btn btn--primary"
+                  className="btn btn--primary btn--sm"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Updating...' : 'Update Status'}
+                  {isSubmitting ? 'Updating...' : 'Confirm Status'}
                 </button>
               </div>
             </form>

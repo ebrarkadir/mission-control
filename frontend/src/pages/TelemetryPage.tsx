@@ -1,7 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { telemetryApi } from '../api/telemetryApi';
 import { vehicleApi } from '../api/vehicleApi';
+import {
+  IconAltitude,
+  IconBattery,
+  IconClock,
+  IconCoordinates,
+  IconGauge,
+  IconRadio,
+  IconRefresh,
+  IconThermometer,
+} from '../components/Icons';
 import { ApiError } from '../types/api';
 import type { ConnectionStatus, TelemetryRecord } from '../types/telemetry';
 import type { Vehicle } from '../types/vehicle';
@@ -29,14 +40,18 @@ function formatCoordinates(lat?: number, lng?: number): string {
 }
 
 export function TelemetryPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialVehicleIdParam = searchParams.get('vehicleId');
+
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(
+    initialVehicleIdParam ? Number(initialVehicleIdParam) : null,
+  );
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(true);
 
   const [latestTelemetry, setLatestTelemetry] = useState<TelemetryRecord | null>(null);
   const [history, setHistory] = useState<TelemetryRecord[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('DISCONNECTED');
-  const [isLoadingInitial, setIsLoadingInitial] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
 
   // Load vehicles registry
@@ -46,7 +61,6 @@ export function TelemetryPage() {
       const data = await vehicleApi.getAll();
       setVehicles(data);
 
-      // Auto-select first active vehicle or first available vehicle if none selected
       if (data.length > 0) {
         setSelectedVehicleId((prev) => {
           if (prev && data.some((v) => v.id === prev)) {
@@ -67,7 +81,6 @@ export function TelemetryPage() {
     void loadVehicles();
   }, [loadVehicles]);
 
-  // Selected vehicle object
   const selectedVehicle = useMemo(() => {
     return vehicles.find((v) => v.id === selectedVehicleId) ?? null;
   }, [vehicles, selectedVehicleId]);
@@ -81,8 +94,10 @@ export function TelemetryPage() {
       return;
     }
 
+    // Keep URL parameter synchronized
+    setSearchParams({ vehicleId: String(selectedVehicleId) }, { replace: true });
+
     let isSubscribed = true;
-    setIsLoadingInitial(true);
     setStreamError(null);
     setLatestTelemetry(null);
     setHistory([]);
@@ -99,12 +114,16 @@ export function TelemetryPage() {
         if (latestRes.status === 'fulfilled') {
           setLatestTelemetry(latestRes.value);
         } else {
-          // 404 means no telemetry has been recorded yet
           if (
             latestRes.reason instanceof ApiError &&
             latestRes.reason.status === 404
           ) {
             setLatestTelemetry(null);
+          } else if (
+            latestRes.reason instanceof ApiError &&
+            latestRes.reason.status === 503
+          ) {
+            setStreamError(latestRes.reason.message);
           }
         }
 
@@ -112,10 +131,16 @@ export function TelemetryPage() {
           setHistory(historyRes.value);
         } else {
           setHistory([]);
+          if (
+            historyRes.reason instanceof ApiError &&
+            historyRes.reason.status === 503
+          ) {
+            setStreamError(historyRes.reason.message);
+          }
         }
-      } finally {
+      } catch (err) {
         if (isSubscribed) {
-          setIsLoadingInitial(false);
+          console.error('Initial telemetry fetch error:', err);
         }
       }
     }
@@ -128,7 +153,6 @@ export function TelemetryPage() {
         if (!isSubscribed) return;
         setLatestTelemetry(record);
         setHistory((prev) => {
-          // Prevent duplicates by ID and keep last 100 entries
           const filtered = prev.filter((item) => item.id !== record.id);
           return [record, ...filtered].slice(0, 100);
         });
@@ -150,326 +174,296 @@ export function TelemetryPage() {
       isSubscribed = false;
       subscription.disconnect();
     };
-  }, [selectedVehicleId]);
+  }, [selectedVehicleId, setSearchParams]);
 
-  // Battery evaluation
+  // Metric evaluations
   const batteryLevel = latestTelemetry?.battery ?? 0;
-  const batteryStatusClass =
-    batteryLevel >= 50
-      ? 'telemetry-card--normal'
-      : batteryLevel >= 20
-      ? 'telemetry-card--warning'
-      : 'telemetry-card--critical';
-
-  const batteryBarClass =
-    batteryLevel >= 50
-      ? 'battery-gauge__fill--normal'
-      : batteryLevel >= 20
-      ? 'battery-gauge__fill--warning'
-      : 'battery-gauge__fill--critical';
-
-  // Temperature evaluation
   const tempLevel = latestTelemetry?.temperature ?? 0;
-  const tempStatusClass =
-    tempLevel > 70 ? 'telemetry-card--critical' : 'telemetry-card--normal';
+
+  const batteryColor =
+    batteryLevel >= 50
+      ? 'var(--status-normal)'
+      : batteryLevel >= 20
+      ? 'var(--status-warning)'
+      : 'var(--status-critical)';
+
+  const tempColor =
+    tempLevel > 70
+      ? 'var(--status-critical)'
+      : tempLevel > 55
+      ? 'var(--status-warning)'
+      : 'var(--text-primary)';
+
+  const statusLabel =
+    connectionStatus === 'CONNECTED'
+      ? 'LIVE'
+      : connectionStatus === 'CONNECTING'
+      ? 'CONNECTING'
+      : connectionStatus === 'ERROR'
+      ? 'ERROR'
+      : 'OFFLINE';
+
+  const statusTagClass =
+    connectionStatus === 'CONNECTED'
+      ? 'tag--active'
+      : connectionStatus === 'CONNECTING'
+      ? 'tag--warning'
+      : connectionStatus === 'ERROR'
+      ? 'tag--critical'
+      : 'tag--neutral';
 
   return (
     <div>
-      {/* Page Header */}
-      <div className="page-header">
-        <div className="page-header__title">
+      {/* Header */}
+      <div className="ops-page-header">
+        <div className="ops-page-title">
           <h2>Live Telemetry Stream</h2>
-          <p>Real-time vehicle telemetry feeds, sensor readings, and flight dynamics</p>
+          <p>Real-time vehicle downlink packets, sensor diagnostics, and trajectory tracking</p>
         </div>
-        <div className="page-header__actions">
+        <div className="ops-header-actions">
           <button
             type="button"
             className="btn btn--secondary btn--sm"
             onClick={loadVehicles}
             disabled={isLoadingVehicles}
           >
-            Refresh Fleet
+            <IconRefresh size={12} />
+            <span>Refresh Fleet</span>
           </button>
         </div>
       </div>
 
-      {/* Vehicle Selector & Connection Status Toolbar */}
-      <div className="telemetry-toolbar">
-        <div className="telemetry-selector-group">
-          <label htmlFor="vehicle-select">Target Vehicle:</label>
+      {/* Target Selector & Stream Toolbar */}
+      <div className="ops-toolbar">
+        <div className="ops-toolbar__group">
+          <span className="ops-label">Target Platform:</span>
           {isLoadingVehicles ? (
-            <span className="text-muted">Loading fleet...</span>
+            <span style={{ color: 'var(--text-muted)' }}>Loading fleet...</span>
           ) : vehicles.length === 0 ? (
-            <span className="text-muted">No vehicles available in registry</span>
+            <span style={{ color: 'var(--text-muted)' }}>No vehicles in registry</span>
           ) : (
             <select
-              id="vehicle-select"
+              className="select"
+              style={{ width: 'auto', minWidth: '260px' }}
               value={selectedVehicleId ?? ''}
               onChange={(e) => setSelectedVehicleId(Number(e.target.value))}
             >
               {vehicles.map((v) => (
                 <option key={v.id} value={v.id}>
-                  {v.name} (#{v.id}) — [{v.type} | {v.status}]
+                  #{v.id} {v.name} [{v.type}] — {v.status}
                 </option>
               ))}
             </select>
           )}
+
+          {selectedVehicle && (
+            <span className={`tag tag--${selectedVehicle.status.toLowerCase()}`}>
+              <span className="tag-dot" />
+              {selectedVehicle.status}
+            </span>
+          )}
         </div>
 
-        {/* Real-time Connection Status Badge */}
-        <div>
-          <span
-            className={`connection-badge connection-badge--${connectionStatus.toLowerCase()}`}
-          >
-            <span className="connection-dot" />
-            SSE: {connectionStatus}
+        <div className="ops-toolbar__group">
+          <span className="ops-label">Telemetry Stream:</span>
+          <span className={`tag ${statusTagClass}`}>
+            <span className="tag-dot" />
+            <IconRadio size={11} />
+            <span className="text-mono">{statusLabel}</span>
           </span>
         </div>
       </div>
 
+      {/* Stream Error Alert if service degraded / circuit breaker tripped */}
       {streamError && (
-        <div className="alert alert--error" style={{ marginBottom: '1.5rem' }}>
-          Stream Error: {streamError}. Attempting automatic reconnect...
+        <div className="alert-banner alert-banner--error" role="alert">
+          <span>{streamError}</span>
         </div>
       )}
 
-      {/* Main Content */}
-      {isLoadingVehicles ? (
-        <div className="loading-container">
-          <div className="loading-spinner" />
-          <p>Initializing telemetry module...</p>
-        </div>
-      ) : !selectedVehicle ? (
-        <div className="empty-state">
-          <div className="empty-state__icon">&#128747;</div>
-          <h4>No Vehicle Selected</h4>
-          <p>Please register or select a vehicle to monitor its live telemetry.</p>
+      {/* Main Content Area */}
+      {!selectedVehicle ? (
+        <div className="ops-empty-state">
+          <p className="ops-empty-title">No platform selected</p>
+          <p className="ops-empty-desc">Select an unmanned unit from the toolbar to initiate telemetry stream.</p>
         </div>
       ) : (
         <>
-          {/* Live Sensor Metrics Grid */}
+          {/* Real-time Metric Sensor Tiles */}
           <div className="telemetry-grid">
             {/* Battery */}
-            <article className={`telemetry-card ${batteryStatusClass}`}>
-              <div className="telemetry-card__header">
-                <span className="telemetry-card__label">Battery Level</span>
-                <span className="telemetry-card__icon">&#128267;</span>
+            <div className="telemetry-tile">
+              <div className="telemetry-tile__header">
+                <span className="telemetry-tile__label">Battery State</span>
+                <IconBattery size={14} style={{ color: batteryColor }} />
               </div>
-              <div className="telemetry-card__body">
-                <span className="telemetry-card__value">
+              <div className="telemetry-tile__body">
+                <span className="telemetry-tile__value" style={{ color: batteryColor }}>
                   {latestTelemetry ? latestTelemetry.battery : '--'}
                 </span>
-                <span className="telemetry-card__unit">%</span>
+                <span className="telemetry-tile__unit">%</span>
               </div>
-              <div>
-                <div className="battery-gauge">
-                  <div
-                    className={`battery-gauge__fill ${batteryBarClass}`}
-                    style={{ width: `${Math.max(0, Math.min(100, batteryLevel))}%` }}
-                  />
-                </div>
-                <div className="telemetry-card__footer" style={{ marginTop: '0.4rem' }}>
-                  <span>Status</span>
-                  <span>
-                    {batteryLevel >= 50
-                      ? 'Normal'
-                      : batteryLevel >= 20
-                      ? 'Warning'
-                      : 'Critical'}
-                  </span>
-                </div>
-              </div>
-            </article>
-
-            {/* Temperature */}
-            <article className={`telemetry-card ${tempStatusClass}`}>
-              <div className="telemetry-card__header">
-                <span className="telemetry-card__label">Temperature</span>
-                <span className="telemetry-card__icon">&#127777;</span>
-              </div>
-              <div className="telemetry-card__body">
-                <span className="telemetry-card__value">
-                  {latestTelemetry
-                    ? latestTelemetry.temperature.toFixed(1)
-                    : '--'}
-                </span>
-                <span className="telemetry-card__unit">°C</span>
-              </div>
-              <div className="telemetry-card__footer">
-                <span>Threshold: 70°C</span>
-                <span>{tempLevel > 70 ? 'HIGH TEMP' : 'Nominal'}</span>
-              </div>
-            </article>
-
-            {/* Speed */}
-            <article className="telemetry-card telemetry-card--normal">
-              <div className="telemetry-card__header">
-                <span className="telemetry-card__label">Ground Speed</span>
-                <span className="telemetry-card__icon">&#9889;</span>
-              </div>
-              <div className="telemetry-card__body">
-                <span className="telemetry-card__value">
-                  {latestTelemetry ? latestTelemetry.speed.toFixed(1) : '--'}
-                </span>
-                <span className="telemetry-card__unit">km/h</span>
-              </div>
-              <div className="telemetry-card__footer">
-                <span>Velocity</span>
-                <span>{latestTelemetry?.speed ? 'In Motion' : 'Stationary'}</span>
-              </div>
-            </article>
-
-            {/* Altitude */}
-            <article className="telemetry-card telemetry-card--normal">
-              <div className="telemetry-card__header">
-                <span className="telemetry-card__label">Altitude</span>
-                <span className="telemetry-card__icon">&#9650;</span>
-              </div>
-              <div className="telemetry-card__body">
-                <span className="telemetry-card__value">
-                  {latestTelemetry ? latestTelemetry.altitude.toFixed(1) : '--'}
-                </span>
-                <span className="telemetry-card__unit">m</span>
-              </div>
-              <div className="telemetry-card__footer">
-                <span>Above Ground</span>
-                <span>Barometric</span>
-              </div>
-            </article>
-
-            {/* Coordinates */}
-            <article className="telemetry-card">
-              <div className="telemetry-card__header">
-                <span className="telemetry-card__label">GPS Position</span>
-                <span className="telemetry-card__icon">&#127757;</span>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 600, fontFamily: 'monospace' }}>
-                  Lat: {latestTelemetry ? latestTelemetry.latitude.toFixed(5) : '--'}
-                </div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 600, fontFamily: 'monospace', marginTop: '0.2rem' }}>
-                  Lng: {latestTelemetry ? latestTelemetry.longitude.toFixed(5) : '--'}
-                </div>
-              </div>
-              <div className="telemetry-card__footer">
-                <span>{formatCoordinates(latestTelemetry?.latitude, latestTelemetry?.longitude)}</span>
-              </div>
-            </article>
-
-            {/* Last Telemetry Update */}
-            <article className="telemetry-card">
-              <div className="telemetry-card__header">
-                <span className="telemetry-card__label">Last Telemetry</span>
-                <span className="telemetry-card__icon">&#9201;</span>
-              </div>
-              <div className="telemetry-card__body">
-                <span className="telemetry-card__value" style={{ fontSize: '1.25rem' }}>
-                  {formatTimestamp(latestTelemetry?.recordedAt)}
-                </span>
-              </div>
-              <div className="telemetry-card__footer">
-                <span>Unit: #{selectedVehicle.id}</span>
-                <span>{selectedVehicle.name}</span>
-              </div>
-            </article>
-          </div>
-
-          {/* Telemetry History Log */}
-          <div className="data-table-wrapper">
-            <div
-              style={{
-                padding: '1rem 1.25rem',
-                borderBottom: '1px solid var(--border)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.05rem' }}>
-                  Telemetry Log Stream (Recent {history.length} records)
-                </h3>
-                <p style={{ margin: '0.2rem 0 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                  Real-time telemetry event stream for vehicle #{selectedVehicle.id}
-                </p>
+              <div className="compact-gauge">
+                <div
+                  className="compact-gauge__fill"
+                  style={{
+                    width: `${Math.max(0, Math.min(100, batteryLevel))}%`,
+                    backgroundColor: batteryColor,
+                  }}
+                />
               </div>
             </div>
 
-            {isLoadingInitial ? (
-              <div className="loading-container">
-                <div className="loading-spinner" />
-                <p>Establishing initial telemetry buffer...</p>
+            {/* Core Temperature */}
+            <div className="telemetry-tile">
+              <div className="telemetry-tile__header">
+                <span className="telemetry-tile__label">Thermal Core</span>
+                <IconThermometer size={14} style={{ color: tempColor }} />
               </div>
-            ) : history.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-state__icon">&#128225;</div>
-                <h4>No Telemetry Records Yet</h4>
-                <p>
-                  Waiting for telemetry broadcasts from vehicle &quot;{selectedVehicle.name}&quot;...
+              <div className="telemetry-tile__body">
+                <span className="telemetry-tile__value" style={{ color: tempColor }}>
+                  {latestTelemetry ? latestTelemetry.temperature.toFixed(1) : '--'}
+                </span>
+                <span className="telemetry-tile__unit">°C</span>
+              </div>
+              <span className="text-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                {tempLevel > 70 ? 'CRITICAL TEMP' : tempLevel > 55 ? 'ELEVATED TEMP' : 'NOMINAL RANGE'}
+              </span>
+            </div>
+
+            {/* Ground Speed */}
+            <div className="telemetry-tile">
+              <div className="telemetry-tile__header">
+                <span className="telemetry-tile__label">Velocity</span>
+                <IconGauge size={14} style={{ color: 'var(--text-secondary)' }} />
+              </div>
+              <div className="telemetry-tile__body">
+                <span className="telemetry-tile__value">
+                  {latestTelemetry ? latestTelemetry.speed.toFixed(1) : '--'}
+                </span>
+                <span className="telemetry-tile__unit">m/s</span>
+              </div>
+              <span className="text-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                {latestTelemetry ? `${(latestTelemetry.speed * 3.6).toFixed(1)} km/h` : '-- km/h'}
+              </span>
+            </div>
+
+            {/* Altitude */}
+            <div className="telemetry-tile">
+              <div className="telemetry-tile__header">
+                <span className="telemetry-tile__label">Altitude AGL</span>
+                <IconAltitude size={14} style={{ color: 'var(--text-secondary)' }} />
+              </div>
+              <div className="telemetry-tile__body">
+                <span className="telemetry-tile__value">
+                  {latestTelemetry ? latestTelemetry.altitude.toFixed(1) : '--'}
+                </span>
+                <span className="telemetry-tile__unit">m</span>
+              </div>
+              <span className="text-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                Barometric datum
+              </span>
+            </div>
+
+            {/* Spatial Coordinates */}
+            <div className="telemetry-tile" style={{ gridColumn: 'span 2' }}>
+              <div className="telemetry-tile__header">
+                <span className="telemetry-tile__label">GNSS Position</span>
+                <IconCoordinates size={14} style={{ color: 'var(--text-secondary)' }} />
+              </div>
+              <div className="telemetry-tile__body">
+                <span className="telemetry-tile__value" style={{ fontSize: '16px' }}>
+                  {latestTelemetry
+                    ? formatCoordinates(latestTelemetry.latitude, latestTelemetry.longitude)
+                    : '--'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span className="text-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                  Lat: {latestTelemetry?.latitude.toFixed(6) ?? '--'} | Lon: {latestTelemetry?.longitude.toFixed(6) ?? '--'}
+                </span>
+                <span className="text-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                  <IconClock size={10} style={{ marginRight: '3px' }} />
+                  {formatTimestamp(latestTelemetry?.recordedAt)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Telemetry Downlink History Table */}
+          <div className="ops-panel">
+            <div className="ops-panel__header">
+              <h3 className="ops-panel__title">
+                <IconRadio size={13} />
+                <span>Downlink Packet History</span>
+              </h3>
+              <span className="ops-panel__meta text-mono">
+                Buffer: {history.length} / 100 packets
+              </span>
+            </div>
+
+            {history.length === 0 ? (
+              <div className="ops-empty-state">
+                <p className="ops-empty-title">Awaiting telemetry telemetry stream</p>
+                <p className="ops-empty-desc">
+                  No packets recorded yet for this platform. Ensure the vehicle is active.
                 </p>
               </div>
             ) : (
-              <div className="data-table-container">
-                <table className="data-table">
+              <div className="ops-table-container" style={{ border: 'none', maxHeight: '380px' }}>
+                <table className="ops-table">
                   <thead>
                     <tr>
+                      <th style={{ width: '60px' }}>Packet</th>
                       <th>Time</th>
-                      <th>Battery</th>
-                      <th>Temperature</th>
-                      <th>Speed</th>
-                      <th>Altitude</th>
                       <th>Latitude</th>
                       <th>Longitude</th>
+                      <th style={{ textAlign: 'right' }}>Alt (m)</th>
+                      <th style={{ textAlign: 'right' }}>Speed (m/s)</th>
+                      <th style={{ textAlign: 'right' }}>Battery</th>
+                      <th style={{ textAlign: 'right' }}>Temp (°C)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {history.map((record) => {
-                      const isBatLow = record.battery < 20;
-                      const isBatWarn = record.battery >= 20 && record.battery < 50;
-                      const isTempHigh = record.temperature > 70;
-
-                      return (
-                        <tr key={record.id}>
-                          <td>
-                            <span className="text-mono">
-                              {formatTimestamp(record.recordedAt)}
-                            </span>
-                          </td>
-                          <td>
-                            <span
-                              style={{
-                                color: isBatLow
-                                  ? '#ffb4ab'
-                                  : isBatWarn
-                                  ? '#f39c12'
-                                  : 'inherit',
-                                fontWeight: isBatLow || isBatWarn ? 700 : 'normal',
-                              }}
-                            >
-                              {record.battery}%
-                            </span>
-                          </td>
-                          <td>
-                            <span
-                              style={{
-                                color: isTempHigh ? '#ffb4ab' : 'inherit',
-                                fontWeight: isTempHigh ? 700 : 'normal',
-                              }}
-                            >
-                              {record.temperature.toFixed(1)} °C
-                            </span>
-                          </td>
-                          <td>{record.speed.toFixed(1)} km/h</td>
-                          <td>{record.altitude.toFixed(1)} m</td>
-                          <td className="text-mono text-muted">
-                            {record.latitude.toFixed(5)}
-                          </td>
-                          <td className="text-mono text-muted">
-                            {record.longitude.toFixed(5)}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {history.map((record) => (
+                      <tr key={record.id}>
+                        <td className="text-mono" style={{ color: 'var(--text-muted)' }}>
+                          #{record.id}
+                        </td>
+                        <td className="text-mono">{formatTimestamp(record.recordedAt)}</td>
+                        <td className="text-mono">{record.latitude.toFixed(5)}°</td>
+                        <td className="text-mono">{record.longitude.toFixed(5)}°</td>
+                        <td className="text-mono" style={{ textAlign: 'right' }}>
+                          {record.altitude.toFixed(1)}
+                        </td>
+                        <td className="text-mono" style={{ textAlign: 'right' }}>
+                          {record.speed.toFixed(1)}
+                        </td>
+                        <td
+                          className="text-mono"
+                          style={{
+                            textAlign: 'right',
+                            color:
+                              record.battery < 20
+                                ? 'var(--status-critical)'
+                                : record.battery < 50
+                                ? 'var(--status-warning)'
+                                : 'inherit',
+                          }}
+                        >
+                          {record.battery}%
+                        </td>
+                        <td
+                          className="text-mono"
+                          style={{
+                            textAlign: 'right',
+                            color: record.temperature > 70 ? 'var(--status-critical)' : 'inherit',
+                          }}
+                        >
+                          {record.temperature.toFixed(1)}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

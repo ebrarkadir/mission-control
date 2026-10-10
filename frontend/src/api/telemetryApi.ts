@@ -4,9 +4,7 @@ import type {
   TelemetryStreamOptions,
   TelemetryStreamSubscription,
 } from '../types/telemetry';
-import { apiClient, triggerUnauthorized } from './apiClient';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { API_BASE_URL, apiClient, triggerUnauthorized } from './apiClient';
 
 export const telemetryApi = {
   getLatest: (vehicleId: number): Promise<TelemetryRecord> => {
@@ -63,7 +61,22 @@ export const telemetryApi = {
             onError?.(new Error('Session expired or unauthorized (401)'));
             return;
           }
-          throw new Error(`SSE stream connection failed with status ${response.status}`);
+
+          let errorMessage = `SSE stream connection failed with status ${response.status}`;
+          try {
+            const errData = await response.json();
+            if (errData && typeof errData === 'object') {
+              if (typeof errData.message === 'string' && errData.message.trim() !== '') {
+                errorMessage = errData.message;
+              } else if (typeof errData.error === 'string' && errData.error.trim() !== '') {
+                errorMessage = errData.error;
+              }
+            }
+          } catch {
+            // Keep default message if response body is not JSON
+          }
+
+          throw new Error(errorMessage);
         }
 
         if (!response.body) {

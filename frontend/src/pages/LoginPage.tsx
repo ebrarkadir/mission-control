@@ -13,7 +13,7 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (isLoading) {
-    return <LoadingScreen message="Checking session..." />;
+    return <LoadingScreen message="Verifying operator session..." />;
   }
 
   if (isAuthenticated) {
@@ -31,7 +31,7 @@ export function LoginPage() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('Unable to sign in. Please try again.');
+        setError('Authorization failed. Verify credentials and gateway connectivity.');
       }
     } finally {
       setIsSubmitting(false);
@@ -39,28 +39,45 @@ export function LoginPage() {
   }
 
   return (
-    <div className="login-page">
+    <div className="login-screen">
       <div className="login-card">
         <div className="login-card__header">
-          <span className="login-card__mark">MC</span>
-          <h1>Mission Control</h1>
-          <p>Sign in to access the operations dashboard</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.65rem' }}>
+            <span className="sidebar-brand__badge">MC</span>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 600,
+                letterSpacing: '0.08em',
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                fontFamily: 'JetBrains Mono, monospace',
+              }}
+            >
+              SYS // OPS-CONSOLE
+            </span>
+          </div>
+          <h1 className="login-card__title">Mission Control Terminal</h1>
+          <p className="login-card__subtitle">
+            Enter credentials to access telemetry streams and autonomous fleet operations
+          </p>
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
           {error && (
-            <div className="alert alert--error" role="alert">
-              {error}
+            <div className="alert-banner alert-banner--error" role="alert">
+              <span>{error}</span>
             </div>
           )}
 
           <label className="field">
-            <span>Email</span>
+            <span>Operator Identity</span>
             <input
               type="email"
               name="email"
               autoComplete="email"
               required
+              placeholder="operator@missioncontrol.internal"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               disabled={isSubmitting}
@@ -68,12 +85,13 @@ export function LoginPage() {
           </label>
 
           <label className="field">
-            <span>Password</span>
+            <span>Access Key</span>
             <input
               type="password"
               name="password"
               autoComplete="current-password"
               required
+              placeholder="••••••••••••"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               disabled={isSubmitting}
@@ -83,11 +101,28 @@ export function LoginPage() {
           <button
             type="submit"
             className="btn btn--primary btn--full"
+            style={{ marginTop: '0.35rem' }}
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Signing in...' : 'Sign In'}
+            {isSubmitting ? 'Authorizing Session...' : 'Authenticate'}
           </button>
         </form>
+
+        <div
+          style={{
+            marginTop: '1.25rem',
+            paddingTop: '0.75rem',
+            borderTop: '1px solid var(--border-subtle)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: '10px',
+            color: 'var(--text-muted)',
+            fontFamily: 'JetBrains Mono, monospace',
+          }}
+        >
+          <span>GATEWAY :8084</span>
+          <span>AUTONOMOUS OPS</span>
+        </div>
       </div>
     </div>
   );
