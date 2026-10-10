@@ -190,7 +190,7 @@ export function AlertsPage() {
   };
 
   return (
-    <div>
+    <div className="ops-page">
       {/* Header */}
       <div className="ops-page-header">
         <div className="ops-page-title">
@@ -204,7 +204,7 @@ export function AlertsPage() {
             onClick={handleRefresh}
             disabled={isLoadingAlerts || selectedVehicleId === null}
           >
-            <IconRefresh size={12} />
+            <IconRefresh size={13} />
             <span>Refresh</span>
           </button>
         </div>

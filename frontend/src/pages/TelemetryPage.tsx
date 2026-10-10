@@ -213,7 +213,7 @@ export function TelemetryPage() {
       : 'tag--neutral';
 
   return (
-    <div>
+    <div className="ops-page">
       {/* Header */}
       <div className="ops-page-header">
         <div className="ops-page-title">
@@ -227,7 +227,7 @@ export function TelemetryPage() {
             onClick={loadVehicles}
             disabled={isLoadingVehicles}
           >
-            <IconRefresh size={12} />
+            <IconRefresh size={13} />
             <span>Refresh Fleet</span>
           </button>
         </div>
@@ -289,13 +289,13 @@ export function TelemetryPage() {
         </div>
       ) : (
         <>
-          {/* Real-time Metric Sensor Tiles */}
+          {/* Real-time 4-Column Metric Sensor Tiles */}
           <div className="telemetry-grid">
             {/* Battery */}
             <div className="telemetry-tile">
               <div className="telemetry-tile__header">
                 <span className="telemetry-tile__label">Battery State</span>
-                <IconBattery size={14} style={{ color: batteryColor }} />
+                <IconBattery size={16} style={{ color: batteryColor }} />
               </div>
               <div className="telemetry-tile__body">
                 <span className="telemetry-tile__value" style={{ color: batteryColor }}>
@@ -318,7 +318,7 @@ export function TelemetryPage() {
             <div className="telemetry-tile">
               <div className="telemetry-tile__header">
                 <span className="telemetry-tile__label">Thermal Core</span>
-                <IconThermometer size={14} style={{ color: tempColor }} />
+                <IconThermometer size={16} style={{ color: tempColor }} />
               </div>
               <div className="telemetry-tile__body">
                 <span className="telemetry-tile__value" style={{ color: tempColor }}>
@@ -326,7 +326,7 @@ export function TelemetryPage() {
                 </span>
                 <span className="telemetry-tile__unit">°C</span>
               </div>
-              <span className="text-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+              <span className="text-mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                 {tempLevel > 70 ? 'CRITICAL TEMP' : tempLevel > 55 ? 'ELEVATED TEMP' : 'NOMINAL RANGE'}
               </span>
             </div>
@@ -335,7 +335,7 @@ export function TelemetryPage() {
             <div className="telemetry-tile">
               <div className="telemetry-tile__header">
                 <span className="telemetry-tile__label">Velocity</span>
-                <IconGauge size={14} style={{ color: 'var(--text-secondary)' }} />
+                <IconGauge size={16} style={{ color: 'var(--text-secondary)' }} />
               </div>
               <div className="telemetry-tile__body">
                 <span className="telemetry-tile__value">
@@ -343,7 +343,7 @@ export function TelemetryPage() {
                 </span>
                 <span className="telemetry-tile__unit">m/s</span>
               </div>
-              <span className="text-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+              <span className="text-mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                 {latestTelemetry ? `${(latestTelemetry.speed * 3.6).toFixed(1)} km/h` : '-- km/h'}
               </span>
             </div>
@@ -352,7 +352,7 @@ export function TelemetryPage() {
             <div className="telemetry-tile">
               <div className="telemetry-tile__header">
                 <span className="telemetry-tile__label">Altitude AGL</span>
-                <IconAltitude size={14} style={{ color: 'var(--text-secondary)' }} />
+                <IconAltitude size={16} style={{ color: 'var(--text-secondary)' }} />
               </div>
               <div className="telemetry-tile__body">
                 <span className="telemetry-tile__value">
@@ -360,31 +360,55 @@ export function TelemetryPage() {
                 </span>
                 <span className="telemetry-tile__unit">m</span>
               </div>
-              <span className="text-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+              <span className="text-mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                 Barometric datum
               </span>
             </div>
+          </div>
 
-            {/* Spatial Coordinates */}
-            <div className="telemetry-tile" style={{ gridColumn: 'span 2' }}>
-              <div className="telemetry-tile__header">
-                <span className="telemetry-tile__label">GNSS Position</span>
-                <IconCoordinates size={14} style={{ color: 'var(--text-secondary)' }} />
+          {/* Spatial GNSS Wide Horizontal Telemetry Instrument */}
+          <div className="telemetry-gnss-panel">
+            <div className="telemetry-gnss-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <IconCoordinates size={16} style={{ color: 'var(--accent)' }} />
+                <span className="telemetry-gnss-item__label" style={{ fontSize: '12px' }}>
+                  GNSS Spatial Position & Downlink Fix
+                </span>
               </div>
-              <div className="telemetry-tile__body">
-                <span className="telemetry-tile__value" style={{ fontSize: '16px' }}>
+              <span className="text-mono" style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                <IconClock size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                Last Fix: {latestTelemetry ? formatTimestamp(latestTelemetry.recordedAt) : '--:--:--'}
+              </span>
+            </div>
+
+            <div className="telemetry-gnss-body">
+              <div className="telemetry-gnss-item">
+                <span className="telemetry-gnss-item__label">Formatted Coordinates</span>
+                <span className="telemetry-gnss-item__value" style={{ fontSize: '16px', color: 'var(--accent)' }}>
                   {latestTelemetry
                     ? formatCoordinates(latestTelemetry.latitude, latestTelemetry.longitude)
-                    : '--'}
+                    : '00° 00\' 00" N, 000° 00\' 00" E'}
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span className="text-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
-                  Lat: {latestTelemetry?.latitude.toFixed(6) ?? '--'} | Lon: {latestTelemetry?.longitude.toFixed(6) ?? '--'}
+
+              <div className="telemetry-gnss-item">
+                <span className="telemetry-gnss-item__label">Decimal Latitude</span>
+                <span className="telemetry-gnss-item__value">
+                  {latestTelemetry ? `${latestTelemetry.latitude.toFixed(6)}°` : '--.------°'}
                 </span>
-                <span className="text-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
-                  <IconClock size={10} style={{ marginRight: '3px' }} />
-                  {formatTimestamp(latestTelemetry?.recordedAt)}
+              </div>
+
+              <div className="telemetry-gnss-item">
+                <span className="telemetry-gnss-item__label">Decimal Longitude</span>
+                <span className="telemetry-gnss-item__value">
+                  {latestTelemetry ? `${latestTelemetry.longitude.toFixed(6)}°` : '--.------°'}
+                </span>
+              </div>
+
+              <div className="telemetry-gnss-item">
+                <span className="telemetry-gnss-item__label">Position Datum</span>
+                <span className="telemetry-gnss-item__value" style={{ color: 'var(--status-normal)', fontSize: '13px' }}>
+                  WGS-84 / 3D FIX
                 </span>
               </div>
             </div>

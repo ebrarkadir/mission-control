@@ -254,7 +254,7 @@ export function MissionsPage() {
   };
 
   return (
-    <div>
+    <div className="ops-page">
       {/* Header */}
       <div className="ops-page-header">
         <div className="ops-page-title">
@@ -268,7 +268,7 @@ export function MissionsPage() {
             onClick={loadData}
             disabled={isLoading}
           >
-            <IconRefresh size={12} />
+            <IconRefresh size={13} />
             <span>Refresh</span>
           </button>
           {canModify && (

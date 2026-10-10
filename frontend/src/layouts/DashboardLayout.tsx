@@ -82,7 +82,7 @@ export function DashboardLayout() {
                 }
               >
                 <div className="nav-item__left">
-                  <Icon size={14} />
+                  <Icon size={15} />
                   <span>{item.label}</span>
                 </div>
                 {item.to === '/notifications' && unreadCount > 0 && (
@@ -105,7 +105,7 @@ export function DashboardLayout() {
 
           <div className="app-header__right">
             <div className="operator-info">
-              <IconUser size={13} style={{ color: 'var(--text-secondary)' }} />
+              <IconUser size={14} style={{ color: 'var(--text-secondary)' }} />
               <span className="operator-name">{user.name}</span>
               <span className={roleBadgeClass(user.role)}>{user.role}</span>
             </div>
@@ -116,7 +116,7 @@ export function DashboardLayout() {
               onClick={logout}
               title="Sign out of console"
             >
-              <IconLogout size={13} />
+              <IconLogout size={14} />
               <span>Sign Out</span>
             </button>
           </div>

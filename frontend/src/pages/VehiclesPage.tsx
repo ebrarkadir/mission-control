@@ -213,7 +213,7 @@ export function VehiclesPage() {
   };
 
   return (
-    <div>
+    <div className="ops-page">
       {/* Page Header */}
       <div className="ops-page-header">
         <div className="ops-page-title">
@@ -227,7 +227,7 @@ export function VehiclesPage() {
             onClick={fetchVehicles}
             disabled={isLoading}
           >
-            <IconRefresh size={12} />
+            <IconRefresh size={13} />
             <span>Refresh</span>
           </button>
           {canModify && (

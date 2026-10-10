@@ -130,7 +130,7 @@ export function DashboardPage() {
   }, [notifications]);
 
   return (
-    <div>
+    <div className="ops-page">
       {/* Header */}
       <div className="ops-page-header">
         <div className="ops-page-title">
@@ -144,7 +144,7 @@ export function DashboardPage() {
             onClick={loadDashboardData}
             disabled={isLoading}
           >
-            <IconRefresh size={12} />
+            <IconRefresh size={13} />
             <span>Refresh</span>
           </button>
         </div>
@@ -162,11 +162,11 @@ export function DashboardPage() {
         <div className="ops-stat-card">
           <span className="ops-stat-label">
             <span>Fleet Active</span>
-            <IconVehicles size={13} style={{ color: 'var(--status-normal)' }} />
+            <IconVehicles size={15} style={{ color: 'var(--status-normal)' }} />
           </span>
           <div className="ops-stat-value text-mono">
             <span style={{ color: 'var(--status-normal)' }}>{stats.activeVehicles}</span>
-            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: '15px', color: 'var(--text-muted)' }}>
               {' '}/ {stats.totalVehicles}
             </span>
           </div>
@@ -178,11 +178,11 @@ export function DashboardPage() {
         <div className="ops-stat-card">
           <span className="ops-stat-label">
             <span>Active Missions</span>
-            <IconMissions size={13} style={{ color: 'var(--accent)' }} />
+            <IconMissions size={15} style={{ color: 'var(--accent)' }} />
           </span>
           <div className="ops-stat-value text-mono">
             <span style={{ color: 'var(--accent)' }}>{stats.activeMissions}</span>
-            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: '15px', color: 'var(--text-muted)' }}>
               {' '}/ {stats.totalMissions}
             </span>
           </div>
@@ -195,7 +195,7 @@ export function DashboardPage() {
           <span className="ops-stat-label">
             <span>Unread Events</span>
             <IconNotifications
-              size={13}
+              size={15}
               style={{
                 color: stats.unreadNotifications > 0 ? 'var(--status-warning)' : 'var(--text-muted)',
               }}
@@ -216,7 +216,7 @@ export function DashboardPage() {
         <div className="ops-stat-card">
           <span className="ops-stat-label">
             <span>Missions Completed</span>
-            <IconClock size={13} style={{ color: 'var(--text-secondary)' }} />
+            <IconClock size={15} style={{ color: 'var(--text-secondary)' }} />
           </span>
           <div className="ops-stat-value text-mono">{stats.completedMissions}</div>
           <span className="ops-stat-meta">Historical archived sorties</span>
@@ -224,9 +224,9 @@ export function DashboardPage() {
       </div>
 
       {/* Main 2-Column Dashboard Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1rem' }}>
+      <div className="ops-dashboard-grid">
         {/* Left Column: Fleet & In-Flight Operations */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div className="ops-dashboard-main">
           {/* Active Fleet Panel */}
           <div className="ops-panel">
             <div className="ops-panel__header">
@@ -392,7 +392,7 @@ export function DashboardPage() {
         </div>
 
         {/* Right Column: Events Feed & Quick Operations */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div className="ops-dashboard-side">
           {/* Recent Events / Notifications */}
           <div className="ops-panel">
             <div className="ops-panel__header">
@@ -416,39 +416,31 @@ export function DashboardPage() {
                 <p className="ops-empty-desc">Operational messaging queue is clear.</p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="ops-notification-list">
                 {recentNotifications.map((n) => (
                   <div
                     key={n.id}
-                    style={{
-                      padding: '0.6rem 0.85rem',
-                      borderBottom: '1px solid var(--border-subtle)',
-                      backgroundColor: n.read ? 'transparent' : 'rgba(56, 189, 248, 0.04)',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      justifyContent: 'space-between',
-                      gap: '0.75rem',
-                    }}
+                    className={`ops-notification-item ${!n.read ? 'ops-notification-item--unread' : ''}`}
                   >
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '2px' }}>
+                    <div className="ops-notification-item__body">
+                      <div className="ops-notification-item__meta">
                         {!n.read && (
                           <span
                             className="tag tag--warning"
-                            style={{ padding: '1px 4px', fontSize: '9px' }}
+                            style={{ padding: '1px 5px', fontSize: '9.5px' }}
                           >
                             UNREAD
                           </span>
                         )}
-                        <span className="text-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                        <span className="text-mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                           Alert Ref #{n.alertId}
                         </span>
                       </div>
-                      <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-primary)' }}>
+                      <p className="ops-notification-item__msg">
                         {n.message}
                       </p>
                     </div>
-                    <span className="text-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    <span className="ops-notification-item__time">
                       {formatTimestamp(n.createdAt)}
                     </span>
                   </div>
@@ -464,23 +456,25 @@ export function DashboardPage() {
                 <span>Quick Operations</span>
               </h3>
             </div>
-            <div className="ops-panel__body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-              <Link to="/vehicles" className="btn btn--secondary btn--sm" style={{ justifyContent: 'flex-start' }}>
-                <IconVehicles size={13} />
-                <span>Fleet Registry</span>
-              </Link>
-              <Link to="/missions" className="btn btn--secondary btn--sm" style={{ justifyContent: 'flex-start' }}>
-                <IconMissions size={13} />
-                <span>Mission Dispatch</span>
-              </Link>
-              <Link to="/telemetry" className="btn btn--secondary btn--sm" style={{ justifyContent: 'flex-start' }}>
-                <IconRadio size={13} />
-                <span>Telemetry Monitor</span>
-              </Link>
-              <Link to="/alerts" className="btn btn--secondary btn--sm" style={{ justifyContent: 'flex-start' }}>
-                <IconAlerts size={13} />
-                <span>Incident Log</span>
-              </Link>
+            <div className="ops-panel__body">
+              <div className="ops-quick-actions">
+                <Link to="/vehicles" className="btn btn--secondary btn--sm ops-quick-action-btn">
+                  <IconVehicles size={14} />
+                  <span>Fleet Registry</span>
+                </Link>
+                <Link to="/missions" className="btn btn--secondary btn--sm ops-quick-action-btn">
+                  <IconMissions size={14} />
+                  <span>Mission Dispatch</span>
+                </Link>
+                <Link to="/telemetry" className="btn btn--secondary btn--sm ops-quick-action-btn">
+                  <IconRadio size={14} />
+                  <span>Telemetry Monitor</span>
+                </Link>
+                <Link to="/alerts" className="btn btn--secondary btn--sm ops-quick-action-btn">
+                  <IconAlerts size={14} />
+                  <span>Incident Log</span>
+                </Link>
+              </div>
             </div>
           </div>
         </div>

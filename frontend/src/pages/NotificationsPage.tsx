@@ -112,16 +112,16 @@ export function NotificationsPage() {
   }, [notifications, filter]);
 
   return (
-    <div className="page-view">
+    <div className="ops-page">
       {/* Page Header */}
-      <div className="page-header">
-        <div className="page-header__left">
-          <h2 className="page-header__title">Notification Feed</h2>
-          <p className="page-header__subtitle">
+      <div className="ops-page-header">
+        <div className="ops-page-title">
+          <h2>Notification Feed</h2>
+          <p>
             Operator dispatch events, incident notifications, and telemetry threshold triggers
           </p>
         </div>
-        <div className="page-header__actions">
+        <div className="ops-header-actions">
           <button
             type="button"
             className="btn btn--secondary btn--sm"
@@ -135,30 +135,30 @@ export function NotificationsPage() {
       </div>
 
       {/* Metric Tiles */}
-      <div className="metric-strip">
-        <div className="metric-card">
-          <span className="metric-card__label">Total Events</span>
-          <span className="metric-card__value">{metrics.total}</span>
-          <span className="metric-card__meta">Recorded notifications</span>
+      <div className="ops-stats-row ops-stats-row--3">
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Total Events</span>
+          <span className="ops-stat-value text-mono">{metrics.total}</span>
+          <span className="ops-stat-meta">Recorded notifications</span>
         </div>
 
-        <div className={`metric-card ${metrics.unread > 0 ? 'metric-card--alert' : ''}`}>
-          <span className="metric-card__label">Unacknowledged</span>
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Unacknowledged</span>
           <span
-            className="metric-card__value"
+            className="ops-stat-value text-mono"
             style={{ color: metrics.unread > 0 ? 'var(--status-warning)' : 'inherit' }}
           >
             {metrics.unread}
           </span>
-          <span className="metric-card__meta">Action required</span>
+          <span className="ops-stat-meta">Action required</span>
         </div>
 
-        <div className="metric-card">
-          <span className="metric-card__label">Acknowledged</span>
-          <span className="metric-card__value" style={{ color: 'var(--text-secondary)' }}>
+        <div className="ops-stat-card">
+          <span className="ops-stat-label">Acknowledged</span>
+          <span className="ops-stat-value text-mono" style={{ color: 'var(--text-secondary)' }}>
             {metrics.read}
           </span>
-          <span className="metric-card__meta">Archived in log</span>
+          <span className="ops-stat-meta">Archived in log</span>
         </div>
       </div>
 
